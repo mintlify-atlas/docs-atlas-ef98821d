@@ -1,0 +1,89 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "thoop",
+  "projectDescription": "A terminal user interface for viewing and analyzing your WHOOP fitness data",
+  "theme": "aspen",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Usage",
+        "pages": [
+          "usage/overview",
+          "usage/navigation",
+          "usage/date-navigation",
+          "usage/calendar",
+          "usage/commands"
+        ]
+      },
+      {
+        "group": "Features",
+        "pages": [
+          "features/dashboard",
+          "features/recovery",
+          "features/sleep",
+          "features/strain",
+          "features/real-time-updates"
+        ]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "architecture/overview",
+          "architecture/authentication",
+          "architecture/caching",
+          "architecture/rate-limiting",
+          "architecture/server"
+        ]
+      },
+      {
+        "group": "Development",
+        "pages": [
+          "development/building",
+          "development/project-structure",
+          "development/contributing"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/commands",
+          "reference/keyboard-shortcuts",
+          "reference/configuration",
+          "reference/troubleshooting"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Interactive terminal UI for WHOOP data",
+    "Real-time dashboard with recovery, sleep, and strain metrics",
+    "Historical data visualization with charts",
+    "Calendar view for browsing past data",
+    "OAuth authentication with WHOOP API",
+    "Intelligent caching and rate limiting",
+    "Live updates via Server-Sent Events",
+    "Date navigation to explore historical metrics"
+  ],
+  "publicApiSurface": [
+    "thoop - Launch the interactive TUI",
+    "thoop upgrade - Update to the latest version",
+    "thoop logout - Clear stored credentials",
+    "thoop purge - Remove all local data",
+    "Client.User - User profile operations",
+    "Client.Cycle - Physiological cycle data",
+    "Client.Recovery - Recovery metrics",
+    "Client.Sleep - Sleep performance data",
+    "Client.Workout - Workout and activity data"
+  ]
+}
