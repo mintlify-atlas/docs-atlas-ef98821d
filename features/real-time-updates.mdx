@@ -1,0 +1,295 @@
+---
+title: 'Real-Time Updates'
+description: 'Live data synchronization via Server-Sent Events (SSE)'
+---
+
+thoop uses Server-Sent Events (SSE) to provide real-time updates when your WHOOP data changes, ensuring you always see your latest metrics without manual refreshing.
+
+## Overview
+
+When WHOOP processes new data (recovery calculated, workout completed, sleep scored), thoop receives a notification and automatically refreshes the affected data.
+
+<CardGroup cols={2}>
+  <Card title="Automatic Updates" icon="rotate">
+    Data refreshes automatically when changes occur
+  </Card>
+  <Card title="Background Sync" icon="cloud">
+    No manual refresh required
+  </Card>
+</CardGroup>
+
+## How It Works
+
+### SSE Connection
+
+When you start thoop:
+
+1. **Authentication**: Uses your OAuth token to authenticate
+2. **Connection**: Opens SSE stream to `/api/notifications/stream`
+3. **Catch-Up**: Polls for any missed notifications while offline
+4. **Listen**: Maintains persistent connection for real-time events
+5. **Auto-Reconnect**: Reconnects with exponential backoff if disconnected
+
+### Event Flow
+
+```
+WHOOP API → thoop Server → SSE Stream → thoop TUI → Data Refresh
+```
+
+1. WHOOP webhook fires when data changes
+2. thoop server receives webhook and stores notification
+3. Notification sent via SSE to connected clients
+4. TUI processes notification and refetches affected data
+5. Dashboard updates with new data
+
+## Notification Types
+
+thoop handles three types of entity updates:
+
+### Recovery Updated
+
+**Trigger**: New recovery score calculated (typically after waking)
+
+**Action**: Refetches current cycle, recovery, and sleep data
+
+**Affected Views**:
+- Recovery gauge on dashboard
+- Recovery detail metrics
+- Calendar color (if viewing calendar)
+
+### Sleep Updated
+
+**Trigger**: Sleep session scored (30min-2hrs after waking)
+
+**Action**: Refetches sleep and recovery for current cycle
+
+**Affected Views**:
+- Sleep gauge on dashboard
+- Sleep detail metrics and charts
+- Recovery metrics (respiratory rate comes from sleep)
+
+### Workout Updated
+
+**Trigger**: Workout completed or edited
+
+**Action**: Refetches cycle data and today's workouts
+
+**Affected Views**:
+- Strain gauge on dashboard
+- Strain detail metrics
+- Today's Activities list
+
+<Note>
+Notifications also support `deleted` actions for when data is removed, though this is less common.
+</Note>
+
+## Notification Data Structure
+
+Each notification contains:
+
+```go
+type Notification struct {
+    ID         int64      // Monotonic ID for cursor-based pagination
+    TraceID    string     // WHOOP's trace ID for acknowledgment
+    EntityType EntityType // "recovery", "sleep", or "workout"
+    EntityID   string     // ID of the affected entity
+    Action     Action     // "updated" or "deleted"
+    Timestamp  time.Time  // When the event occurred
+}
+```
+
+**Source**: `internal/storage/notifications.go:23-30`
+
+## Connection Management
+
+### Initial Connection
+
+On startup, thoop:
+1. Checks authentication during splash screen
+2. Starts SSE connection when entering dashboard
+3. Uses `sync.Once` to ensure only one SSE connection per session
+
+**Code**: `internal/tui/model.go:540-553`
+
+### Reconnection Strategy
+
+If the SSE connection drops:
+
+1. **Exponential Backoff**:
+   - Initial: 1 second
+   - Maximum: 30 seconds
+   - Factor: 2x per attempt
+
+2. **Retry-After Header**: Respects server's retry-after directive (max 30s)
+
+3. **Catch-Up on Reconnect**: Polls for missed notifications before resuming stream
+
+**Implementation**: `internal/client/sse/client.go:75-121`
+
+<Info>
+The connection automatically cleans up when you quit thoop (Ctrl+C or 'q').
+</Info>
+
+## Acknowledgment Flow
+
+Notifications use an at-least-once delivery model:
+
+1. **Receive**: Notification delivered via SSE
+2. **Process**: TUI handles the notification (refetch data)
+3. **Acknowledge**: Send ACK with trace ID to mark as processed
+4. **Prevent Redelivery**: Acknowledged notifications won't be redelivered
+
+**Code**: `internal/tui/sse.go:44-64`
+
+### Missed Notifications
+
+If thoop was offline:
+- On reconnection, polls `/api/notifications/unacked` for all unacknowledged notifications
+- Processes them in order (oldest to newest)
+- Acknowledges after successful processing
+- Ensures you never miss data updates
+
+**Implementation**: `internal/client/sse/client.go:183-211`
+
+## Event Types
+
+The SSE stream sends several event types:
+
+### `notification`
+Actual data change notification (processed by TUI)
+
+### `heartbeat`
+Keep-alive ping (every 30 seconds)
+
+### `connected`
+Connection established confirmation
+
+### `shutdown`
+Server graceful shutdown warning (triggers reconnect)
+
+**Handler**: `internal/client/sse/client.go:213-238`
+
+## TUI Integration
+
+### Message Handling
+
+When a notification arrives:
+
+```go
+case NotificationMsg:
+    if m.page == page.Dashboard {
+        return m, tea.Batch(
+            dashboard.FetchCycleCmd(m.deps.Ctx, m.deps.CacheService),
+            ListenNotificationsCmd(...), // Continue listening
+        )
+    }
+```
+
+**Location**: `internal/tui/model.go:242-249`
+
+### Data Refresh
+
+Notifications trigger targeted refetches:
+- **Cycle data**: Strain, calories, heart rate
+- **Sleep data**: Sleep performance, stages
+- **Recovery data**: Recovery score, HRV, RHR
+- **Workouts**: Today's activities list
+
+The cache service deduplicates requests and respects WHOOP rate limits.
+
+## Visual Indicators
+
+thoop doesn't show explicit "syncing" indicators because:
+- Updates happen quickly (< 1 second)
+- Data changes are rare (few times per day)
+- Gauges update smoothly when data arrives
+
+The auth indicator in the footer shows connection status:
+- **Green**: Connected and authenticated
+- **Yellow/Red**: Connection issues
+
+## Polling Fallback
+
+If SSE is unavailable, thoop uses polling:
+
+- **Endpoint**: `/api/notifications/unacked`
+- **Cursor-based pagination**: Efficient retrieval of new notifications
+- **Limit**: 100 notifications per request
+- **Buffered channel**: Prevents memory issues with large backlogs
+
+**Implementation**: `internal/client/sse/poll.go`
+
+## Performance Optimizations
+
+### Notification Processing
+
+Notifications are processed asynchronously:
+- Received on dedicated channel
+- Processed one at a time (sequential)
+- Non-blocking acknowledgment (fire-and-forget)
+
+### Data Caching
+
+thoop caches API responses to minimize redundant requests:
+- Cache TTL: 30 seconds (configurable)
+- Invalidated on notification receipt
+- Shared across all views
+
+### Rate Limiting
+
+Respects WHOOP's rate limits:
+- Tracks requests per endpoint
+- Queues excess requests
+- Retries with exponential backoff on 429 responses
+
+**Implementation**: `internal/client/whoop/ratelimit.go`
+
+## Offline Behavior
+
+If network connection is lost:
+
+1. **SSE disconnects**: Logged as warning
+2. **Reconnection attempts**: Start with exponential backoff
+3. **UI remains functional**: Shows last known data
+4. **Auto-recovery**: Catches up on reconnection
+
+No data is lost - notifications are persisted server-side until acknowledged.
+
+## Security
+
+### Authentication
+
+SSE connections require:
+- **OAuth Bearer Token**: In `Authorization` header
+- **Session ID**: Custom header for multi-device support
+- **API Key**: Custom header for server identification
+
+### Transport
+
+All connections use:
+- **HTTPS**: Encrypted in transit
+- **Token refresh**: Automatic token renewal before expiration
+- **Context cancellation**: Clean shutdown on quit
+
+## Debugging
+
+To see SSE events in logs:
+
+```bash
+thoop --log-level debug
+```
+
+Look for:
+- `SSE connection established`
+- `received notification`
+- `SSE connection failed, reconnecting`
+- `caught up on missed notifications`
+
+## Implementation Details
+
+- **SSE Client**: `internal/client/sse/client.go`
+- **TUI Integration**: `internal/tui/sse.go`
+- **Message Handling**: `internal/tui/model.go:242-256`
+- **Notification Types**: `internal/storage/notifications.go`
+- **Connection Management**: Auto-reconnect with backoff (client.go:75-121)
+- **Polling Fallback**: `internal/client/sse/poll.go`

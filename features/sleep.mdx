@@ -1,0 +1,250 @@
+---
+title: 'Sleep Performance'
+description: 'Comprehensive sleep analysis with stages, efficiency, and sleep need tracking'
+---
+
+The Sleep view provides detailed analysis of your sleep quality, duration, and composition based on WHOOP's sleep tracking.
+
+## Sleep Performance Score
+
+The sleep performance score (0-100%) represents how well you slept relative to your body's needs. It considers:
+
+- Hours slept vs. hours needed
+- Sleep consistency
+- Sleep efficiency
+- Sleep stages (light, deep, REM)
+- Disturbances and wake time
+
+### Score Ranges
+
+<CardGroup cols={3}>
+  <Card title="Optimal" color="#2DD881" icon="check">
+    85-100% - Excellent sleep quality
+  </Card>
+  <Card title="Sufficient" color="#94A3B8" icon="minus">
+    70-84% - Adequate sleep
+  </Card>
+  <Card title="Poor" color="#FE802D" icon="xmark">
+    0-69% - Sleep deficit
+  </Card>
+</CardGroup>
+
+## Key Metrics
+
+The Sleep detail view displays several key metrics with color-coded progress bars:
+
+### Sleep Performance
+
+- **Display**: Percentage (0-100%)
+- **Progress Bar**: 3-segment bar with thresholds at 70% and 85%
+- **Colors**: Orange (poor), gray (sufficient), teal (optimal)
+
+### Hours vs. Needed
+
+Shows how much sleep you got compared to your personalized sleep need.
+
+- **Display**: Percentage (0-100%)
+- **Calculation**: `(hours_slept / hours_needed) * 100`
+- **Capped**: Maximum of 100%
+- **Progress Bar**: 3-segment bar with thresholds at 70% and 85%
+
+<Info>
+Your sleep need is dynamic and adjusts based on recent strain, sleep debt, baseline needs, and recent naps.
+</Info>
+
+### Sleep Consistency
+
+Measures how consistent your sleep schedule is.
+
+- **Display**: Percentage (0-100%)
+- **Progress Bar**: 3-segment bar with thresholds at 70% and 80%
+- **Higher is better**: Consistent sleep times improve recovery
+
+### Sleep Efficiency
+
+Percentage of time in bed actually spent asleep.
+
+- **Display**: Percentage (0-100%)
+- **Calculation**: `(sleep_time / time_in_bed) * 100`
+- **Progress Bar**: 3-segment bar with thresholds at 80% and 90%
+- **Data Source**: `SleepScore.SleepEfficiencyPercentage`
+
+## Sleep Stages
+
+A visual breakdown of your time in each sleep stage:
+
+### Stage Composition
+
+<CardGroup cols={4}>
+  <Card title="Awake" color="#94A3B8">
+    Time awake during the night
+  </Card>
+  <Card title="Light Sleep" color="#6366F1">
+    Light sleep stage
+  </Card>
+  <Card title="SWS (Deep)" color="#8B5CF6">
+    Slow-wave sleep / deep sleep
+  </Card>
+  <Card title="REM" color="#EC4899">
+    Rapid eye movement sleep
+  </Card>
+</CardGroup>
+
+### Sleep Stages Chart
+
+Displays a horizontal bar chart showing:
+- **Duration**: Time spent in each stage (hours:minutes)
+- **Percentage**: Proportion of total sleep time
+- **Baseline**: Gray reference line showing your 7-day average sleep duration
+- **Colors**: Stage-specific colors (awake=gray, light=indigo, deep=purple, REM=pink)
+
+<Note>
+The percentage calculations exclude awake time from the denominator to show the composition of actual sleep.
+</Note>
+
+## Sleep Need Breakdown
+
+A detailed visualization of why your body needs a certain amount of sleep:
+
+### Components
+
+1. **Hours of Sleep** (actual)
+   - Time in bed minus time awake
+   - Displayed as horizontal bar
+
+2. **Sleep Needed** (target)
+   - Stacked bar showing three components:
+     - **Healthy Minimum** (teal): Your baseline sleep need
+     - **Recent Strain** (orange): Additional need from physical activity
+     - **Sleep Debt** (red): Accumulated deficit from previous nights
+
+### Sleep Need Formula
+
+```
+Total Need = Baseline + Strain Need + Sleep Debt - Recent Naps
+```
+
+- **Baseline**: Your personal healthy minimum (typically 7-9 hours)
+- **Strain Need**: Added by intense workouts and high strain days
+- **Sleep Debt**: Builds when you don't meet your need
+- **Naps**: Deducted from total need (shown as negative/signed value)
+
+<Info>
+The sleep need visualization uses signed durations (+/-) to clearly show additions and deductions.
+</Info>
+
+## Restorative Sleep
+
+Combined deep (SWS) and REM sleep - the most restorative sleep stages.
+
+- **Display**: Total duration (hours:minutes)
+- **Direction Indicator**: Compared to 7-day average
+  - ↑ (teal) when above average
+  - ↓ (orange) when below average
+- **Symbol**: Split-colored square (◤) representing REM (top) and SWS (bottom)
+
+## Weekly Trends
+
+Scroll down to see charts showing 7-day trends:
+
+### Weekly Sleep Performance
+- **Chart Type**: Color-coded bar chart
+- **Colors**: Same as sleep score (orange/gray/teal)
+- **Data**: Last 7 sleep sessions (excluding naps)
+
+### Hours of Sleep vs. Needed
+- **Chart Type**: Dual-line chart
+- **Lines**: 
+  - Purple: Hours of sleep (actual)
+  - Teal: Sleep needed (target)
+- **Legend**: Top-right corner
+- **Y-Axis**: Auto-scaled to fit data
+
+### Hours vs. Needed (%)
+- **Chart Type**: Bar chart
+- **Data**: Percentage of sleep need met
+- **Y-Axis**: 0-100%
+
+### Restorative Sleep
+- **Chart Type**: Stacked bar chart
+- **Segments**:
+  - Pink: REM sleep
+  - Purple: Deep sleep (SWS)
+- **Legend**: Shows both stages with reverse ordering
+
+### Sleep Consistency (%)
+- **Chart Type**: Bar chart
+- **Data**: Consistency percentage over 7 days
+
+### Sleep Efficiency (%)
+- **Chart Type**: Line chart with dots
+- **Color**: Purple
+- **Data**: Efficiency percentage over 7 days
+
+### Sleep Debt
+- **Chart Type**: Bar chart
+- **Data**: Sleep debt in hours
+- **Y-Axis**: Max of 3 hours
+- **Color**: Purple
+
+<Note>
+All sleep charts automatically exclude naps and filter data to the selected date when viewing historical records.
+</Note>
+
+## Navigation
+
+While in the Sleep detail view:
+- **←/h or →/l**: Switch to Recovery or Strain tabs
+- **↑/↓ or j/k**: Scroll through metrics and charts
+- **Mouse Wheel**: Scroll content
+- **esc**: Return to Overview
+- **[/]**: Navigate to previous/next day's sleep data
+
+## Data Sources
+
+Sleep data comes from:
+- **Primary**: `/v2/cycle/{id}/sleep` - Sleep associated with the current cycle
+- **Historical**: `/v2/activity/sleep` - Last 7 days for trend charts
+
+### Sleep Data Structure
+
+Key fields from `internal/client/whoop/types.go`:
+
+```go
+type Sleep struct {
+    ID         string
+    CycleID    int64
+    Start      time.Time
+    End        time.Time
+    Nap        bool      // Excluded from charts
+    Score      *SleepScore
+}
+
+type SleepScore struct {
+    StageSummary               SleepStages
+    SleepNeeded                SleepNeeded
+    SleepPerformancePercentage float64
+    SleepConsistencyPercentage float64
+    SleepEfficiencyPercentage  float64
+    RespiratoryRate            float64
+}
+```
+
+## Data Availability
+
+If sleep data is not available:
+- Gauge shows `--`
+- Metrics section displays "No sleep data available"
+- Charts are hidden
+
+This occurs when:
+- Viewing a day without sleep data
+- Sleep hasn't been scored yet (takes ~30min after waking)
+- Viewing future dates
+
+## Implementation Details
+
+- **Main View**: `internal/tui/page/dashboard/sleep.go` (lines 18-825)
+- **Data Types**: `internal/client/whoop/types.go` (lines 56-96)
+- **Chart Rendering**: `internal/tui/components/chart/`
+- **Lazy List**: `internal/tui/components/lazy_list/` for scroll optimization

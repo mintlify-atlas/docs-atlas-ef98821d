@@ -1,0 +1,309 @@
+---
+title: Project Structure
+description: Understanding thoop's directory organization and architecture
+---
+
+## Overview
+
+thoop follows Go's standard project layout with a clear separation between commands, internal packages, and configuration files.
+
+```
+thoop/
+├── cmd/                    # Command-line applications
+├── internal/               # Private application code
+├── sqlc/                   # SQL queries for code generation
+├── bin/                    # Compiled binaries (gitignored)
+├── Makefile                # Build automation
+├── go.mod                  # Go module definition
+├── sqlc.yml                # sqlc configuration
+├── .golangci.yml           # Linter configuration
+└── .goreleaser.yaml        # Release configuration
+```
+
+## cmd/ - Executables
+
+The `cmd/` directory contains the main entry points for each binary:
+
+### cmd/thoop/
+**TUI Client** - The main terminal user interface application
+
+- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI
+- Uses SQLite for local data storage
+- Manages OAuth authentication with WHOOP
+- Primary user-facing application
+
+```bash
+# Run in dev mode
+make thoop
+```
+
+### cmd/server/
+**HTTP Server** - Backend API server
+
+- Web server component (if separate from TUI)
+- Uses PostgreSQL for data storage
+- Handles OAuth callbacks and API endpoints
+- Built with standard `net/http` or similar
+
+```bash
+# Run server
+make server
+```
+
+### cmd/db/
+**Database CLI** - Database management utility
+
+- Migration management
+- Database inspection and debugging
+- Schema operations
+
+```bash
+# Run database CLI
+make db
+```
+
+### cmd/gen_version/
+**Version Generator** - Build-time version management
+
+- Generates `version_gen.go` from version manifest
+- Creates snapshot versions for development
+- Not included in final builds
+
+```bash
+make version/gen
+```
+
+## internal/ - Core Application Code
+
+The `internal/` directory contains private packages that cannot be imported by external projects:
+
+### Architecture Layers
+
+<CodeGroup>
+```plaintext Storage Layer
+internal/
+├── sqlite/          # SQLite client storage
+├── postgres/        # PostgreSQL server storage  
+├── redis/           # Redis cache
+└── migrations/      # Database migrations
+    ├── sqlite/sql/  # SQLite migration files
+    └── postgres/sql/# PostgreSQL migration files
+```
+
+```plaintext Business Logic
+internal/
+├── service/         # Business logic services
+├── repository/      # Data access patterns
+├── client/          # WHOOP API client
+└── oauth/           # OAuth flow handling
+```
+
+```plaintext User Interface
+internal/
+├── tui/             # Terminal UI components
+├── server/          # HTTP server handlers
+├── templates/       # HTML templates (templ)
+└── xhttp/           # HTTP utilities
+```
+
+```plaintext Infrastructure
+internal/
+├── config/          # Configuration management
+├── keyring/         # Secure credential storage
+├── session/         # Session management
+├── cache/           # Caching utilities
+└── paths/           # File path utilities
+```
+</CodeGroup>
+
+### Key Packages
+
+#### internal/sqlite/
+SQLite database layer for the TUI client:
+- **sqlc/** - Generated type-safe SQL code
+- Schema migrations in `internal/migrations/sqlite/sql/`
+- Local user data storage
+
+#### internal/postgres/
+PostgreSQL database layer for the server:
+- **sqlc/** - Generated type-safe SQL code  
+- Schema migrations in `internal/migrations/postgres/sql/`
+- Multi-user data storage
+
+#### internal/tui/
+Terminal UI built with Bubble Tea:
+- Screen components and models
+- User interaction handling
+- Data visualization (including Braille graphics)
+
+#### internal/client/
+WHOOP API client:
+- HTTP client for WHOOP's API
+- Request/response handling
+- Data fetching and synchronization
+
+#### internal/oauth/
+OAuth 2.0 authentication:
+- WHOOP OAuth flow
+- Token management
+- HTML templates for OAuth pages (`.templ` files)
+
+#### internal/templates/
+Shared HTML templates using [templ](https://templ.guide/):
+- Generates type-safe Go code from `.templ` files
+- Used for web pages in OAuth flow
+
+#### internal/braille/
+Braille character rendering:
+- Terminal-based data visualization
+- Uses [drawille-go](https://github.com/exrook/drawille-go)
+- Renders charts and graphs in terminal
+
+### Utility Packages (x* prefix)
+
+thoop includes several internal utility packages prefixed with `x`:
+
+- **xcontext/** - Context utilities
+- **xerrors/** - Error handling helpers
+- **xhttp/** - HTTP utilities and middleware
+- **xslices/** - Slice manipulation helpers
+- **xslog/** - Structured logging utilities
+- **xsync/** - Synchronization primitives
+- **xtempl/** - Template utilities
+- **xtime/** - Time and duration helpers
+
+<Note>
+  The `x` prefix indicates experimental or extended utilities, a common Go convention.
+</Note>
+
+## sqlc/ - SQL Queries
+
+SQL query files used by sqlc for code generation:
+
+```
+sqlc/
+├── queries/
+│   ├── sqlite/      # SQLite queries for TUI client
+│   └── postgres/    # PostgreSQL queries for server
+```
+
+Configuration in `sqlc.yml` defines:
+- Database engines (SQLite and PostgreSQL)
+- Query locations
+- Schema migration paths
+- Output packages (`litesqlc`, `pgsqlc`)
+
+## Configuration Files
+
+### Build and Development
+
+- **Makefile** - Build automation, see [Building from Source](/development/building)
+- **go.mod** - Go 1.25.1 with dependencies
+- **.golangci.yml** - Linter with 30+ enabled checks
+- **.goreleaser.yaml** - Multi-platform release automation
+
+### Code Generation
+
+- **sqlc.yml** - Dual-database sqlc configuration
+- **templ files** - `.templ` → `.go` template generation
+
+### Deployment
+
+- **Dockerfile** - Container image definition
+- **docker-compose.yml** - Local services (Redis, PostgreSQL)
+- **fly.toml** - Fly.io deployment configuration
+
+## Data Flow
+
+<Steps>
+  <Step title="User Authentication">
+    User authenticates via OAuth flow
+    
+    `cmd/thoop` → `internal/oauth` → WHOOP API
+  </Step>
+
+  <Step title="Data Fetching">
+    Client fetches data from WHOOP
+    
+    `internal/client` → WHOOP API → `internal/service`
+  </Step>
+
+  <Step title="Data Storage">
+    Data persists locally or on server
+    
+    `internal/service` → `internal/repository` → `internal/sqlite` or `internal/postgres`
+  </Step>
+
+  <Step title="User Interface">
+    TUI displays data to user
+    
+    `internal/tui` → `internal/service` → rendered in terminal
+  </Step>
+</Steps>
+
+## Build Artifacts
+
+Generated files and build outputs (gitignored):
+
+```plaintext
+bin/                    # Compiled binaries
+├── thoop
+├── thoop-server
+└── thoop-db
+
+*.db                    # SQLite databases
+thoop.db               # Default local database
+
+*_templ.go             # Generated from .templ files
+internal/sqlite/sqlc/  # Generated by sqlc
+internal/postgres/sqlc/# Generated by sqlc
+version_gen.go         # Generated version file
+```
+
+<Tip>
+  Always run `make templ/generate` and `make sqlc/generate` after pulling changes that modify templates or SQL files.
+</Tip>
+
+## Testing Structure
+
+Tests are co-located with the code they test:
+
+```
+internal/
+├── package/
+│   ├── file.go
+│   └── file_test.go    # Unit tests
+```
+
+Run all tests:
+
+```bash
+make test  # go test -v -race ./...
+```
+
+## Dependencies Overview
+
+### Core Framework
+- **cobra** - CLI framework
+- **bubbletea** - TUI framework
+- **lipgloss** - Terminal styling
+
+### Data Storage
+- **modernc.org/sqlite** - Pure Go SQLite
+- **pgx/v5** - PostgreSQL driver
+- **go-redis/v9** - Redis client
+
+### Code Generation
+- **templ** - Template → Go code
+- **sqlc** - SQL → Go code
+
+### Security
+- **oauth2** - OAuth 2.0 client
+- **go-keyring** - Secure credential storage
+
+### Utilities
+- **uuid** - UUID generation
+- **godotenv** - Environment file loading
+- **go-json** - Fast JSON encoding/decoding
+
+See `go.mod` for the complete dependency list.

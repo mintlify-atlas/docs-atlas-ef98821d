@@ -1,0 +1,298 @@
+---
+title: Keyboard Shortcuts
+description: Complete keyboard shortcut reference for navigating the thoop TUI
+---
+
+## Overview
+
+thoop is fully keyboard-driven. Use these shortcuts to navigate between views, browse historical data, and interact with the calendar.
+
+## Global Shortcuts
+
+These shortcuts work throughout the entire application:
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`q` or `Ctrl+C`</td>
+      <td>Quit the application</td>
+    </tr>
+  </tbody>
+</table>
+
+## Dashboard Navigation
+
+Use these shortcuts when viewing the main dashboard:
+
+### Tab Navigation
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`Enter`</td>
+      <td>Enter detail view from overview (switches to Recovery tab)</td>
+    </tr>
+    <tr>
+      <td>`→` or `l`</td>
+      <td>Next tab (Recovery → Sleep → Strain)</td>
+    </tr>
+    <tr>
+      <td>`←` or `h`</td>
+      <td>Previous tab (Strain → Sleep → Recovery)</td>
+    </tr>
+    <tr>
+      <td>`Esc`</td>
+      <td>Return to overview from detail tab</td>
+    </tr>
+  </tbody>
+</table>
+
+### Scrolling (Detail Views)
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`↓`, `j`, or `Enter`</td>
+      <td>Scroll down / Enter detail view</td>
+    </tr>
+    <tr>
+      <td>`↑` or `k`</td>
+      <td>Scroll up</td>
+    </tr>
+    <tr>
+      <td>Mouse wheel up</td>
+      <td>Scroll up (3 lines at a time)</td>
+    </tr>
+    <tr>
+      <td>Mouse wheel down</td>
+      <td>Scroll down (3 lines at a time)</td>
+    </tr>
+  </tbody>
+</table>
+
+<Tip>
+Scrolling is only available in detail tabs (Recovery, Sleep, Strain). The overview tab doesn't scroll.
+</Tip>
+
+### Date Navigation
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`[` or `H`</td>
+      <td>Go back one day</td>
+    </tr>
+    <tr>
+      <td>`]` or `L`</td>
+      <td>Go forward one day (only if not already at today)</td>
+    </tr>
+    <tr>
+      <td>`t`</td>
+      <td>Return to today</td>
+    </tr>
+    <tr>
+      <td>`c`</td>
+      <td>Open calendar picker</td>
+    </tr>
+  </tbody>
+</table>
+
+<Tip>
+You can navigate to any historical date. The `]` and `L` keys won't go beyond today's date.
+</Tip>
+
+## Calendar Mode
+
+When you press `c` to open the calendar, these shortcuts become active:
+
+### Calendar Navigation
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`←` or `h`</td>
+      <td>Move cursor left (previous day)</td>
+    </tr>
+    <tr>
+      <td>`→` or `l`</td>
+      <td>Move cursor right (next day)</td>
+    </tr>
+    <tr>
+      <td>`↑` or `k`</td>
+      <td>Move cursor up (previous week)</td>
+    </tr>
+    <tr>
+      <td>`↓` or `j`</td>
+      <td>Move cursor down (next week)</td>
+    </tr>
+    <tr>
+      <td>`[` or `H`</td>
+      <td>Previous month</td>
+    </tr>
+    <tr>
+      <td>`]` or `L`</td>
+      <td>Next month (clamped to current month)</td>
+    </tr>
+  </tbody>
+</table>
+
+### Calendar Actions
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`Enter`</td>
+      <td>Select highlighted date and close calendar</td>
+    </tr>
+    <tr>
+      <td>`t`</td>
+      <td>Jump to today and select it</td>
+    </tr>
+    <tr>
+      <td>`Esc`</td>
+      <td>Close calendar without changing the date</td>
+    </tr>
+    <tr>
+      <td>`q` or `Ctrl+C`</td>
+      <td>Quit the application</td>
+    </tr>
+  </tbody>
+</table>
+
+## Onboarding Shortcuts
+
+During the initial setup flow:
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`Enter`</td>
+      <td>Start authentication flow / Retry after error</td>
+    </tr>
+    <tr>
+      <td>`q` or `Ctrl+C`</td>
+      <td>Quit the application</td>
+    </tr>
+    <tr>
+      <td>Any key</td>
+      <td>Skip splash screen (after auth check completes)</td>
+    </tr>
+  </tbody>
+</table>
+
+## Vim-Style Navigation
+
+thoop supports vim-style navigation keys for a familiar experience:
+
+<table>
+  <thead>
+    <tr>
+      <th>Vim Key</th>
+      <th>Arrow Equivalent</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`h`</td>
+      <td>`←`</td>
+      <td>Left / Previous tab / Previous day (calendar)</td>
+    </tr>
+    <tr>
+      <td>`j`</td>
+      <td>`↓`</td>
+      <td>Down / Scroll down / Next week (calendar)</td>
+    </tr>
+    <tr>
+      <td>`k`</td>
+      <td>`↑`</td>
+      <td>Up / Scroll up / Previous week (calendar)</td>
+    </tr>
+    <tr>
+      <td>`l`</td>
+      <td>`→`</td>
+      <td>Right / Next tab / Next day (calendar)</td>
+    </tr>
+    <tr>
+      <td>`H`</td>
+      <td>`[`</td>
+      <td>Previous day / Previous month (calendar)</td>
+    </tr>
+    <tr>
+      <td>`L`</td>
+      <td>`]`</td>
+      <td>Next day / Next month (calendar)</td>
+    </tr>
+  </tbody>
+</table>
+
+## Context-Aware Hints
+
+thoop displays context-aware keyboard hints in the footer:
+
+**Overview tab (today's date):**
+```
+[/] date    c calendar    ← sleep    ↑↓ recovery    → strain
+```
+
+**Overview tab (historical date):**
+```
+[/] date    c calendar    t today    ← sleep    ↑↓ recovery    → strain
+```
+
+**Detail tabs (today's date):**
+```
+esc back    [/] date    c calendar    ←/→ navigate    ↑/↓ scroll
+```
+
+**Detail tabs (historical date):**
+```
+esc back    [/] date    c calendar    t today    ←/→ navigate    ↑/↓ scroll
+```
+
+**Calendar mode:**
+```
+←↑↓→ navigate    enter select    esc cancel    t today
+```

@@ -1,0 +1,217 @@
+---
+title: 'Calendar View'
+description: 'Using the interactive calendar to navigate dates and view recovery trends'
+---
+
+The calendar view provides a visual overview of your recovery scores and enables quick navigation to any historical date.
+
+## Opening the Calendar
+
+Press `c` from anywhere in the TUI to open the calendar overlay:
+
+```bash
+c  # Open calendar
+```
+
+The calendar opens centered on your current viewing date (today or the selected historical date).
+
+## Calendar Navigation
+
+### Day-by-Day Movement
+
+| Key | Action |
+|-----|--------|
+| `→` or `l` | Next day |
+| `←` or `h` | Previous day |
+| `↓` or `j` | Down one week (7 days) |
+| `↑` or `k` | Up one week (7 days) |
+
+### Month Navigation
+
+| Key | Action |
+|-----|--------|
+| `]` or `L` | Next month |
+| `[` or `H` | Previous month |
+
+<Warning>
+You cannot navigate past the current month. The next month navigation automatically stops at today's month.
+</Warning>
+
+### Quick Actions
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Select highlighted date and close calendar |
+| `t` | Jump to today and close calendar |
+| `Esc` | Close calendar without changing date |
+| `q` or `Ctrl+C` | Quit thoop |
+
+## Calendar Display
+
+### Header
+
+The calendar shows the month name and year (year omitted if current year):
+
+```
+           January 2026
+
+Sun  Mon  Tue  Wed  Thu  Fri  Sat
+```
+
+### Date Grid
+
+The calendar displays 6 weeks to prevent layout shifts between months. Each cell shows:
+
+- **Current month dates**: Colored by recovery score
+- **Previous/next month padding**: Dimmed gray
+- **Future dates**: Dimmed (cannot be selected)
+- **Cursor position**: Highlighted with brackets `[15]`
+
+## Recovery Score Coloring
+
+Dates are automatically colored based on your recovery score for that day:
+
+| Score Range | Color | Meaning |
+|-------------|-------|----------|
+| ≥ 67% | Green | High recovery |
+| 34-66% | Yellow | Medium recovery |
+| < 34% | Red | Low recovery |
+| No data | Gray | No recovery data available |
+
+### Color Legend
+
+The calendar footer displays a color legend:
+
+```
+● <34%  ● 34-66%  ● >66%
+```
+
+<Tip>
+The color coding provides an instant visual overview of your recovery trends across the month, making it easy to spot patterns or problematic periods.
+</Tip>
+
+## Month Navigation Behavior
+
+### Previous Month
+
+When you navigate to the previous month:
+
+1. Month view moves back one month
+2. Cursor moves to the same day in the new month
+3. If that day doesn't exist (e.g., Jan 31 → Feb), cursor moves to the last day of the month
+
+### Next Month
+
+Next month navigation is restricted:
+
+- Cannot navigate past the current month
+- Cursor adjusts to the same day or last valid day
+- Cannot land on a future date (cursor clamps to today)
+
+## Loading Indicator
+
+When you navigate to a new month, thoop fetches recovery data for that month. During loading:
+
+- A spinner animation appears in the center of the grid
+- The spinner uses frames: `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`
+- Navigation remains responsive
+
+<Note>
+thoop caches recovery data aggressively. If you navigate to a month you've recently viewed, the data loads instantly from the local cache.
+</Note>
+
+## Selecting a Date
+
+### Using Enter
+
+Press `Enter` to select the highlighted date:
+
+```
+Highlight Dec 15 → Press Enter → View Dec 15 data
+```
+
+The calendar closes and the main dashboard loads data for the selected date.
+
+### Selecting Today
+
+If you select today's date, thoop switches back to Today Mode:
+
+- Real-time updates re-enable
+- `SelectedDate` clears to `nil`
+- Dashboard shows live data
+
+### Canceling
+
+Press `Esc` to close the calendar without changing the current date:
+
+```
+Press Esc → Calendar closes → Still viewing original date
+```
+
+## Navigation Hints
+
+When the calendar is open, the footer displays:
+
+```
+←↑↓→ navigate    enter select    esc cancel    t today
+```
+
+## Calendar Data Source
+
+The calendar displays recovery scores based on:
+
+1. **Recovery records**: Used for the score value
+2. **Cycle records**: Used for the date (cycle start date takes precedence over recovery created date)
+
+This ensures dates align with WHOOP's cycle-based day boundaries.
+
+## Future Date Restrictions
+
+<Warning>
+Future dates are displayed but cannot be selected. They appear dimmed and the cursor cannot move to them.
+</Warning>
+
+When navigating:
+
+- Arrow keys stop at today when moving forward
+- Month navigation caps at the current month
+- Selecting today via `t` always works
+
+## Use Cases
+
+### Quick Date Jump
+
+Instead of pressing `[` multiple times, open the calendar and jump directly to the date you want.
+
+### Visual Trend Analysis
+
+Scan the month view to identify:
+- Periods of consistently high recovery (green clusters)
+- Recovery dips (red dates)
+- Gaps in data (gray dates)
+
+### Training Block Review
+
+Navigate to the start of a training period and use the color coding to correlate recovery with training load.
+
+## Technical Details
+
+### Grid Layout
+
+- **Column width**: 6 characters per day
+- **Columns**: 7 (days of the week)
+- **Total width**: 50 characters (including borders)
+- **Rows**: 6 weeks (fixed to prevent layout shift)
+
+### Data Fetching
+
+When you navigate to a new month:
+
+1. thoop checks the cache for recovery data covering that month
+2. If cache is stale, fetches 50 days of data from the WHOOP API
+3. Recovery data is merged with existing cache
+4. Calendar re-renders with new data
+
+### Month Change Detection
+
+The calendar only fetches new data when the month actually changes. If you navigate within the same month, no API calls are made.

@@ -1,0 +1,112 @@
+---
+title: 'Dashboard Overview'
+description: 'Main dashboard with three-gauge overview of your WHOOP metrics'
+---
+
+The dashboard is the home screen of thoop, providing an at-a-glance view of your key fitness metrics through three large gauges.
+
+## Overview Mode
+
+When you first open thoop or press `esc` from any detail view, you'll see the Overview tab displaying three prominent gauges:
+
+<CardGroup cols={3}>
+  <Card title="Sleep" icon="bed">
+    Sleep Performance score (0-100%)
+  </Card>
+  <Card title="Recovery" icon="heart-pulse">
+    Recovery score (0-100%) with color-coded status
+  </Card>
+  <Card title="Strain" icon="dumbbell">
+    Daily strain score (0-21)
+  </Card>
+</CardGroup>
+
+### Gauge Display
+
+Each gauge shows:
+- **Current Score**: Large numeric display of your current metric
+- **Visual Arc**: Circular gauge showing progress toward maximum
+- **Color Coding**: 
+  - Sleep: Purple/pink (`#C491E0`)
+  - Recovery: Green (67-100%), Yellow (34-66%), or Red (0-33%)
+  - Strain: Orange (`#FE802D`)
+
+<Note>
+Gauges automatically update when new data arrives via real-time SSE notifications from WHOOP.
+</Note>
+
+## Data Loading
+
+The dashboard fetches data during the splash screen:
+- Current cycle data (for strain)
+- Sleep data for the current cycle
+- Recovery data for the current cycle
+- Historical data (last 7 days) for trend charts
+
+If any data is still loading, gauges will display with empty/no values until data arrives.
+
+## Navigation
+
+From the Overview:
+- **←/h or →/l**: Navigate between tabs (Sleep, Recovery, Strain)
+- **↑/↓ or j/k**: Jump to Recovery detail view
+- **Enter**: Jump to Recovery detail view
+- **[/]**: Navigate to previous/next day
+- **c**: Open calendar view to select any date
+- **t**: Return to today (when viewing past dates)
+
+## Date Navigation
+
+The dashboard supports viewing historical data:
+
+- **Current Date**: Displayed at the top of the screen
+- **Today Mode**: Default view showing current day's data (header shows "TODAY")
+- **Historical Mode**: View past dates (header shows the specific date)
+- **Date Limits**: Can navigate backward indefinitely, but cannot navigate beyond today
+
+<Info>
+When viewing historical dates, a "t today" hint appears in the footer to help you return to current data.
+</Info>
+
+## Data Sources
+
+The dashboard pulls data from several WHOOP API endpoints:
+
+- **Cycle**: `/v2/cycle` - Provides strain metrics and daily activity summary
+- **Sleep**: `/v2/cycle/{id}/sleep` - Sleep performance and stage data
+- **Recovery**: `/v2/cycle/{id}/recovery` - Recovery score and physiological metrics
+- **Workouts**: `/v2/activity/workout` - Individual workout sessions
+
+## Calendar View
+
+Press `c` to open the calendar picker:
+
+- Navigate with arrow keys or vim bindings (h/j/k/l)
+- Days are color-coded by recovery score (green/yellow/red)
+- Current date is highlighted
+- Press `enter` to select a date or `esc` to cancel
+- Press `t` to jump to today
+
+<Info>
+The calendar fetches additional historical data (50 days) to display color-coded recovery status for each day.
+</Info>
+
+## Loading States
+
+While data is being fetched:
+- Gauges display with `--` or empty values
+- The auth indicator in the footer shows connection status
+- Calendar view shows a loading spinner when fetching month data
+
+## Implementation Details
+
+The dashboard view is implemented in:
+- `internal/tui/page/dashboard/dashboard.go` - Main dashboard rendering logic (lines 122-211)
+- `internal/tui/model.go` - State management and message handling (lines 46-746)
+- `internal/tui/page/dashboard/tabs.go` - Tab navigation
+
+Key state variables:
+- `SelectedDate *time.Time` - Currently viewed date (nil = today)
+- `SleepScore`, `RecoveryScore`, `StrainScore` - Current metric values
+- `CurrentCycle`, `CurrentSleep`, `CurrentRecovery` - Full data objects
+- `CalendarMode bool` - Whether calendar picker is open

@@ -1,0 +1,406 @@
+---
+title: Contributing Guidelines
+description: How to contribute to thoop development
+---
+
+## Getting Started
+
+We welcome contributions to thoop! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+
+<Steps>
+  <Step title="Fork and clone">
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/thoop.git
+    cd thoop
+    ```
+  </Step>
+
+  <Step title="Set up development environment">
+    ```bash
+    # Install dependencies
+    make install
+
+    # Install code generation tools
+    make templ/install
+    make sqlc/install
+    ```
+  </Step>
+
+  <Step title="Create a feature branch">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Make your changes">
+    Edit code, add tests, and ensure everything works locally.
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Code Generation
+
+If you modify templates or SQL files, regenerate code:
+
+<CodeGroup>
+```bash Template Changes
+# After modifying .templ files
+make templ/generate
+```
+
+```bash SQL Changes  
+# After modifying SQL queries or migrations
+make sqlc/generate
+```
+
+```bash Version Changes
+# After modifying version manifest
+make version/gen
+```
+</CodeGroup>
+
+<Note>
+  Always commit generated code along with your changes. The CI will verify that generated code is up to date.
+</Note>
+
+### Running Locally
+
+Test your changes during development:
+
+```bash
+# Run TUI client in dev mode
+make thoop
+
+# Run server (requires Docker services)
+make up      # Start Redis and PostgreSQL
+make server  # Run server
+
+# Run database CLI
+make db
+```
+
+### Database Development
+
+When working with database changes:
+
+<Steps>
+  <Step title="Create migration">
+    ```bash
+    # SQLite migrations
+    make migrate/create NAME=add_new_table
+
+    # Edit the generated files in internal/migrations/sqlite/sql/
+    ```
+  </Step>
+
+  <Step title="Apply migration">
+    ```bash
+    make migrate/up
+    ```
+  </Step>
+
+  <Step title="Update SQL queries">
+    Edit query files in `sqlc/queries/sqlite/` or `sqlc/queries/postgres/`
+  </Step>
+
+  <Step title="Regenerate code">
+    ```bash
+    make sqlc/generate
+    ```
+  </Step>
+</Steps>
+
+## Code Quality
+
+### Formatting and Linting
+
+Ensure your code passes all quality checks:
+
+<CodeGroup>
+```bash Format Code
+make fmt
+```
+
+```bash Run Linter
+make lint
+```
+
+```bash Auto-fix Issues
+make lint/fix
+```
+</CodeGroup>
+
+The linter configuration (`.golangci.yml`) enforces:
+- **gofumpt** and **goimports** formatting
+- **30+ linters** including security, style, and correctness checks
+- Strict **sloglint** rules for structured logging
+- Exhaustive switch statement checking
+
+### Testing
+
+Write tests for new functionality:
+
+```bash
+# Run all tests with race detection
+make test
+
+# Run specific package tests
+go test -v ./internal/your-package/
+```
+
+<Tip>
+  Place test files next to the code they test: `file.go` → `file_test.go`
+</Tip>
+
+### Test Requirements
+
+- Add unit tests for new functions and methods
+- Include table-driven tests for multiple scenarios
+- Use `t.Parallel()` for parallelizable tests (enforced by `paralleltest` linter)
+- Test error cases, not just happy paths
+- Mock external dependencies (WHOOP API, databases)
+
+## Coding Standards
+
+### Go Style
+
+Follow standard Go conventions:
+
+- Use **gofumpt** formatting (stricter than gofmt)
+- Write clear, descriptive variable names
+- Keep functions small and focused
+- Document exported functions and types
+- Use **structured logging** with `slog`
+
+### Logging
+
+thoop uses structured logging with strict standards:
+
+```go
+// Good: Structured logging with context and attributes
+slog.InfoContext(ctx, "fetching user data",
+    slog.String("user_id", userID),
+    slog.Int("retry_count", retries),
+)
+
+// Bad: String formatting or raw keys
+slog.Info(fmt.Sprintf("fetching data for %s", userID))  // ❌
+slog.Info("fetching", "userId", userID)                 // ❌ wrong case
+```
+
+Key rules (enforced by `sloglint`):
+- Use **attribute-only** style (no key-value pairs)
+- Always use **context-aware** methods (`InfoContext`, `ErrorContext`)
+- Use **static messages** (no dynamic string formatting)
+- Use **snake_case** for attribute keys
+- Use **constants** instead of raw string keys
+- Put **arguments on separate lines** for readability
+
+### Error Handling
+
+```go
+// Wrap errors with context
+if err != nil {
+    return fmt.Errorf("failed to fetch user data: %w", err)
+}
+
+// Use error checking utilities from internal/xerrors
+```
+
+### Package Organization
+
+- **internal/** - All application code (not importable externally)
+- **cmd/** - Only `main` packages, minimal logic
+- **x* packages** - Reusable utilities (xhttp, xslog, etc.)
+- Avoid **circular dependencies** between packages
+
+## Commit Guidelines
+
+### Commit Messages
+
+Follow conventional commit format:
+
+```
+type(scope): brief description
+
+Longer explanation if needed.
+
+Closes #123
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code refactoring
+- `perf`: Performance improvement
+- `test`: Test additions or fixes
+- `docs`: Documentation changes
+- `chore`: Build/tooling changes
+- `ci`: CI/CD changes
+
+**Examples:**
+```bash
+feat(tui): add recovery metrics chart
+
+fix(oauth): handle expired token refresh
+
+refactor(client): simplify WHOOP API error handling
+```
+
+### What to Commit
+
+**Always commit:**
+- Source code changes
+- Test files
+- Generated code (`*_templ.go`, `sqlc/` output)
+- Documentation updates
+- Migration files
+
+**Never commit:**
+- Binaries (`bin/`)
+- Database files (`*.db`)
+- Environment files (`.env`)
+- Editor configuration (`.vscode/`, `.idea/`)
+- Credentials or secrets
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Ensure quality checks pass">
+    ```bash
+    make fmt
+    make lint
+    make test
+    make sqlc/verify  # If you modified SQL
+    ```
+  </Step>
+
+  <Step title="Update documentation">
+    Update relevant docs if you:
+    - Add new features
+    - Change CLI commands
+    - Modify configuration options
+  </Step>
+
+  <Step title="Push your branch">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Create pull request">
+    - Write a clear title and description
+    - Reference related issues
+    - Explain what changed and why
+    - Add screenshots for UI changes
+  </Step>
+</Steps>
+
+### PR Requirements
+
+Your pull request should:
+
+- Pass all CI checks (linting, tests, build)
+- Include tests for new functionality
+- Update documentation if needed
+- Have a clear description of changes
+- Reference related issues (e.g., "Closes #42")
+- Be based on the latest `main` branch
+
+### Review Process
+
+1. Maintainers will review your PR
+2. Address any feedback or requested changes
+3. Once approved, a maintainer will merge your PR
+4. Your contribution will be included in the next release!
+
+## Development Environment
+
+### Docker Services
+
+For server development, start local services:
+
+```bash
+# Start Redis and PostgreSQL
+make up
+
+# Check services are running
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Stop services
+make down
+```
+
+**Service ports:**
+- Redis: `localhost:6420`
+- PostgreSQL: `localhost:6767` (user: thoop, pass: thoop, db: thoop)
+- Server: `localhost:8989`
+
+### Database Access
+
+```bash
+# Connect to local PostgreSQL
+make psql
+
+# Flush Redis data
+make redis/flush
+
+# Check migration version
+make migrate/version
+```
+
+## Issue Reporting
+
+When reporting bugs:
+
+1. **Search existing issues** first
+2. Include:
+   - thoop version (`thoop --version`)
+   - Operating system
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Relevant logs or screenshots
+
+## Feature Requests
+
+For new feature ideas:
+
+1. Open an issue with the `enhancement` label
+2. Describe:
+   - The problem you're trying to solve
+   - Your proposed solution
+   - Alternative approaches considered
+   - Willingness to implement it yourself
+
+## Release Process
+
+Releases are automated using [release-please](https://github.com/googleapis/release-please):
+
+1. Commits are analyzed for conventional commit types
+2. Changelog is automatically generated
+3. Version is bumped according to semantic versioning
+4. GoReleaser builds and publishes binaries
+5. Homebrew tap is updated automatically
+
+<Note>
+  Only maintainers can create releases. Contributors should focus on PRs.
+</Note>
+
+## Getting Help
+
+- **Documentation:** Read the [full documentation](/introduction)
+- **Issues:** Open an issue on GitHub
+- **Discussions:** Use GitHub Discussions for questions
+- **Code:** Reference existing code as examples
+
+## Code of Conduct
+
+Be respectful and constructive in all interactions. We're building this together!
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the same license as the project (see LICENSE file).

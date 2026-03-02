@@ -1,0 +1,144 @@
+---
+title: 'Date Navigation'
+description: 'Moving between dates to view historical WHOOP data'
+---
+
+thoop allows you to navigate through your entire WHOOP history to view past recovery, sleep, and strain data.
+
+## Date Navigation Keys
+
+| Key | Action |
+|-----|--------|
+| `]` or `L` | Forward one day |
+| `[` or `H` | Back one day |
+| `t` | Jump to today |
+| `c` | Open calendar for date selection |
+
+## Today vs. Historical Mode
+
+thoop operates in two distinct modes:
+
+### Today Mode
+
+- Displays current day's data
+- Updates in real-time via SSE (Server-Sent Events)
+- `SelectedDate` is `nil` internally
+- Footer shows standard navigation hints
+
+### Historical Mode
+
+- Displays data from a specific past date
+- Static snapshot (no real-time updates)
+- Footer includes "t today" hint to return
+- `SelectedDate` is set to the viewing date
+
+## Moving Forward in Time
+
+<Warning>
+You cannot navigate to future dates. The forward navigation (`]` or `L`) is automatically disabled when you reach today.
+</Warning>
+
+### Forward Behavior
+
+```
+Viewing Dec 1 → Press ] → Dec 2
+Viewing Dec 2 → Press ] → Dec 3
+Viewing Dec 30 → Press ] → Dec 31
+Viewing Dec 31 → Press ] → Today (Jan 1)
+Viewing Today → Press ] → (no action)
+```
+
+When you navigate forward to today's date, thoop automatically switches back to Today Mode with real-time updates enabled.
+
+## Moving Backward in Time
+
+Backward navigation has no restrictions - you can view any historical date:
+
+```bash
+Press [ or H  # Go back one day
+```
+
+<Tip>
+Backward navigation continues indefinitely. This is useful for:
+- Reviewing long-term trends
+- Comparing metrics from weeks or months ago
+- Analyzing specific events or training periods
+</Tip>
+
+## Returning to Today
+
+Press `t` from any historical date to instantly return to today:
+
+```
+Viewing Nov 15 → Press t → Today
+Viewing Dec 28 → Press t → Today
+```
+
+<Note>
+If you're already viewing today, pressing `t` does nothing.
+</Note>
+
+## What Happens on Date Change
+
+When you navigate to a new date, thoop:
+
+1. **Clears the current data** - All displayed metrics reset
+2. **Shows loading state** - Gauges indicate data is being fetched
+3. **Fetches new data** - Retrieves cycle, sleep, and recovery for the new date
+4. **Refreshes historical charts** - Updates 7-day trends ending on the selected date
+5. **Clears chart cache** - Ensures charts reflect the new date's context
+
+### Data Reset
+
+The following are cleared on date navigation:
+
+- Current cycle, sleep, and recovery
+- Sleep, recovery, and strain scores
+- Today's workouts
+- Computed averages
+- Historical data arrays
+- Calendar recovery cache
+
+## Date Format and Time Zones
+
+Dates are displayed in your local timezone. When navigating:
+
+- Date comparison uses calendar dates, not timestamps
+- "Today" is determined by your system's current date
+- Historical data is fetched based on the selected date's cycle boundaries
+
+## Navigation Footer Hints
+
+### When Viewing Today
+
+```
+[/] date    c calendar    ← sleep    ↑↓ recovery    → strain
+```
+
+### When Viewing Historical Date
+
+```
+[/] date    c calendar    t today    ← sleep    ↑↓ recovery    → strain
+```
+
+The `t today` hint only appears when you're viewing a historical date.
+
+## Performance Considerations
+
+<Note>
+thoop uses intelligent caching to make date navigation fast. If you navigate to a date you've recently viewed, the data loads instantly from the local SQLite cache.
+</Note>
+
+## Use Cases
+
+### Review Last Week's Trend
+
+Press `[` seven times to go back one week, then navigate forward day-by-day using `]`.
+
+### Compare Specific Dates
+
+Use the calendar (`c`) to jump to a specific date quickly, then use `[` and `]` to navigate the surrounding days.
+
+### Analyze a Training Block
+
+Navigate to the start of a training period and step through each day to review recovery and strain patterns.

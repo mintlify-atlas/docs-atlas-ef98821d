@@ -1,0 +1,473 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for thoop
+---
+
+## Overview
+
+This guide covers common issues you might encounter when using thoop and how to resolve them.
+
+## Installation Issues
+
+### macOS Gatekeeper Blocking Binary
+
+When you first run thoop on macOS, you may see:
+
+```
+"thoop" cannot be opened because the developer cannot be verified.
+```
+
+**Solution:**
+
+Remove the quarantine attribute from the binary:
+
+```bash
+xattr -d com.apple.quarantine $(which thoop)
+```
+
+After running this command, thoop should launch normally.
+
+<Accordion title="Why does this happen?">
+macOS Gatekeeper blocks unsigned binaries downloaded from the internet. Since thoop is distributed via Homebrew and GitHub releases (not through the App Store), it doesn't have an Apple Developer signature. Removing the quarantine attribute tells macOS you trust this binary.
+</Accordion>
+
+### Command Not Found After Installation
+
+If you get `command not found: thoop` after installing:
+
+**Via Homebrew:**
+```bash
+# Verify installation
+brew list garrettladley/tap/thoop
+
+# Check if Homebrew bin is in PATH
+echo $PATH | grep -q "$(brew --prefix)/bin" && echo "OK" || echo "Add to PATH"
+
+# Add to PATH if needed (add to ~/.zshrc or ~/.bashrc)
+export PATH="$(brew --prefix)/bin:$PATH"
+```
+
+**Via Go install:**
+```bash
+# Verify GOPATH/bin is in PATH
+echo $PATH | grep -q "$(go env GOPATH)/bin" && echo "OK" || echo "Add to PATH"
+
+# Add to PATH if needed (add to ~/.zshrc or ~/.bashrc)
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+
+## Authentication Issues
+
+### Keyring Not Available (Linux)
+
+If you see this error on Linux:
+
+```
+Error: OS keyring is not available.
+
+On Linux, thoop requires a secret service for secure credential storage.
+Please ensure one of the following is installed and running:
+  - gnome-keyring (GNOME)
+  - kwallet (KDE)
+
+For headless servers, consider running with D-Bus session:
+  dbus-run-session -- thoop
+```
+
+**Solution for desktop environments:**
+
+<Accordion title="GNOME / Ubuntu / Fedora">
+Install and start gnome-keyring:
+
+```bash
+# Ubuntu/Debian
+sudo apt install gnome-keyring
+
+# Fedora
+sudo dnf install gnome-keyring
+
+# Start the keyring daemon
+gnome-keyring-daemon --start --components=secrets
+```
+
+Ensure it starts automatically by adding to your session startup.
+</Accordion>
+
+<Accordion title="KDE / Kubuntu">
+Install and start kwallet:
+
+```bash
+# Ubuntu/Debian
+sudo apt install kwalletmanager
+
+# Fedora
+sudo dnf install kwalletmanager
+```
+
+KWallet should start automatically with your KDE session.
+</Accordion>
+
+<Accordion title="Headless server / SSH / tmux">
+Run thoop within a D-Bus session:
+
+```bash
+dbus-run-session -- thoop
+```
+
+For permanent setup, add to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+  eval $(dbus-launch --sh-syntax)
+fi
+```
+</Accordion>
+
+### Authentication Failed
+
+If authentication fails during the OAuth flow:
+
+**Common causes:**
+1. Browser didn't open automatically
+2. You closed the browser before completing authentication
+3. Network connectivity issues
+4. Server is down
+
+**Solution:**
+
+1. Try again:
+   ```bash
+   thoop logout
+   thoop
+   ```
+
+2. Check network connectivity:
+   ```bash
+   curl https://thoop.fly.dev/health
+   ```
+
+3. Enable debug logging:
+   ```bash
+   LOG_LEVEL=debug thoop
+   # Check logs in ~/.config/thoop/logs/
+   ```
+
+### Token Expired
+
+thoop automatically refreshes OAuth tokens, but if you see authentication errors:
+
+**Solution:**
+
+Log out and log back in:
+```bash
+thoop logout
+thoop
+```
+
+## Display Issues
+
+### Garbled Characters or Layout Issues
+
+If the TUI displays incorrectly:
+
+**Check terminal compatibility:**
+- Ensure your terminal supports UTF-8
+- Use a modern terminal emulator (iTerm2, Alacritty, WezTerm, etc.)
+- Verify `TERM` environment variable is set correctly
+
+**Recommended terminals:**
+- macOS: iTerm2, Alacritty, WezTerm
+- Linux: Alacritty, WezTerm, GNOME Terminal, Konsole
+- Windows: Windows Terminal, WezTerm
+
+**Check terminal size:**
+```bash
+# Ensure terminal is large enough
+tput cols  # Should be at least 80
+tput lines # Should be at least 24
+```
+
+### Colors Not Displaying Correctly
+
+If colors appear wrong or washed out:
+
+**Check terminal settings:**
+- Ensure true color (24-bit color) support is enabled
+- Verify `COLORTERM` environment variable: `echo $COLORTERM` (should be `truecolor`)
+
+**Set COLORTERM if needed:**
+```bash
+export COLORTERM=truecolor
+```
+
+### Calendar Not Loading
+
+If the calendar appears stuck with a spinner:
+
+**Possible causes:**
+- Network timeout
+- Server connectivity issues
+- API rate limiting
+
+**Solution:**
+
+1. Press `Esc` to close the calendar
+2. Try again after a few seconds
+3. Check logs:
+   ```bash
+   LOG_LEVEL=debug thoop
+   tail -f ~/.config/thoop/logs/*.log
+   ```
+
+## Data Issues
+
+### No Data Displayed
+
+If thoop launches but shows no data:
+
+**Check your WHOOP account:**
+- Ensure you have WHOOP data for the current day
+- Check if your WHOOP device is synced
+- Verify data is visible in the WHOOP mobile app
+
+**Check thoop cache:**
+```bash
+# Clear cache and refetch
+thoop purge
+thoop
+```
+
+### Historical Data Missing
+
+If you can't see historical data:
+
+**Navigation:**
+- Use `[` or `H` to go back one day
+- Use `c` to open the calendar and select a date
+- Ensure you're not trying to view future dates
+
+**Cache:**
+thoop caches the last 50 days. For older data, it will fetch on demand.
+
+### Workouts Not Showing
+
+If workouts aren't displayed on a particular day:
+
+**Check WHOOP app:**
+- Verify workouts are recorded in the WHOOP mobile app
+- Ensure the date matches (workouts are tied to cycle start dates)
+
+**Refresh data:**
+Navigate away from the date and back:
+```
+[ (previous day)
+] (next day)
+```
+
+## Performance Issues
+
+### Slow Startup
+
+If thoop takes a long time to start:
+
+**Common causes:**
+1. Network latency fetching initial data
+2. Large database file
+3. Slow disk I/O
+
+**Solution:**
+
+1. Check network:
+   ```bash
+   ping thoop.fly.dev
+   ```
+
+2. Check database size:
+   ```bash
+   ls -lh ~/.config/thoop/thoop.db
+   ```
+
+3. Clear cache if database is large:
+   ```bash
+   thoop purge
+   thoop
+   ```
+
+### High CPU Usage
+
+If thoop uses excessive CPU:
+
+**Possible causes:**
+- Rapid re-rendering
+- Terminal compatibility issues
+
+**Solution:**
+
+1. Try a different terminal emulator
+2. Check for terminal size changes (resizing can trigger re-renders)
+3. Report the issue with debug logs:
+   ```bash
+   LOG_LEVEL=debug thoop
+   ```
+
+## Network Issues
+
+### Server Unreachable
+
+If you can't connect to the thoop server:
+
+```
+failed to get latest release: ...
+failed to check for updates: ...
+```
+
+**Solution:**
+
+1. Check internet connectivity:
+   ```bash
+   curl https://thoop.fly.dev/health
+   ```
+
+2. Check if firewall is blocking:
+   - Ensure HTTPS (port 443) is allowed
+   - Check corporate firewall/proxy settings
+
+3. Bypass update check (temporary):
+   - The TUI will still attempt to launch even if update check fails
+   - Authentication requires server connectivity
+
+### SSE Connection Failed
+
+Server-Sent Events (SSE) enable real-time updates. If SSE fails:
+
+**Symptoms:**
+- Warning in logs: `SSE disconnected`
+- Dashboard doesn't update in real-time
+
+**Impact:**
+- Not critical - data will still load on navigation
+- Real-time push updates won't work
+
+**Solution:**
+- SSE disconnections are logged but don't break functionality
+- thoop will continue polling for data as needed
+
+## Upgrade Issues
+
+### Upgrade Failed
+
+If `thoop upgrade` fails:
+
+**Solution:**
+
+Manually reinstall:
+
+**Via Homebrew:**
+```bash
+brew upgrade garrettladley/tap/thoop
+```
+
+**Via Go:**
+```bash
+go install github.com/garrettladley/thoop/cmd/thoop@latest
+```
+
+### Version Check Failed
+
+If thoop can't check for updates:
+
+```
+failed to get latest release: ...
+```
+
+**Solution:**
+
+This warning is non-fatal. thoop will continue to launch. To manually check:
+
+```bash
+thoop upgrade
+```
+
+## Getting Help
+
+If you're still experiencing issues:
+
+### Collect Debug Information
+
+1. **Run with debug logging:**
+   ```bash
+   LOG_LEVEL=debug thoop
+   ```
+
+2. **Locate log file:**
+   ```bash
+   ls -lt ~/.config/thoop/logs/ | head -1
+   ```
+
+3. **Check version:**
+   ```bash
+   thoop --version
+   ```
+
+4. **System information:**
+   ```bash
+   uname -a  # OS info
+   echo $TERM  # Terminal type
+   ```
+
+### Report an Issue
+
+<Warning>
+Before reporting issues, ensure you're running the latest version: `thoop upgrade`
+</Warning>
+
+Include in your report:
+- thoop version (`thoop --version`)
+- Operating system and version
+- Terminal emulator and version
+- Relevant log excerpts (redact any sensitive data)
+- Steps to reproduce
+
+**Where to report:**
+- GitHub Issues: `https://github.com/garrettladley/thoop/issues`
+
+### Common Error Messages
+
+<Accordion title="failed to ensure directory">
+**Cause:** Permission issues creating `~/.config/thoop/`
+
+**Solution:**
+```bash
+mkdir -p ~/.config/thoop
+chmod 700 ~/.config/thoop
+```
+</Accordion>
+
+<Accordion title="failed to open database">
+**Cause:** Database file is corrupted or locked
+
+**Solution:**
+```bash
+# Backup first
+cp ~/.config/thoop/thoop.db ~/.config/thoop/thoop.db.bak
+
+# Remove and recreate
+rm ~/.config/thoop/thoop.db
+thoop
+```
+</Accordion>
+
+<Accordion title="running tui: ...">
+**Cause:** Terminal compatibility issue or crash in TUI
+
+**Solution:**
+1. Try a different terminal emulator
+2. Run with debug logging: `LOG_LEVEL=debug thoop`
+3. Check log file for stack trace
+</Accordion>
+
+<Accordion title="keyring unavailable">
+**Cause:** No keyring service running (Linux)
+
+**Solution:** See [Keyring Not Available (Linux)](#keyring-not-available-linux)
+</Accordion>

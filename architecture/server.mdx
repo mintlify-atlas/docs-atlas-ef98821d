@@ -1,0 +1,462 @@
+---
+title: Server Architecture
+description: Companion server implementation and deployment
+---
+
+The thoop companion server is a **Go HTTP server** deployed on Fly.io that mediates communication between CLI clients and the WHOOP API. It handles OAuth, rate limiting, webhooks, and real-time notifications.
+
+## Why a Server?
+
+The server exists for three critical reasons:
+
+1. **OAuth Secret Protection**: WHOOP OAuth client secret must remain confidential. CLI apps can't securely store secrets (they'd be extractable from the binary). The server acts as an OAuth proxy.
+
+2. **Global Rate Limiting**: WHOOP enforces app-wide rate limits (100 req/min, 10K req/day across ALL users). A centralized server coordinates these limits using Redis.
+
+3. **Webhooks & Real-time**: WHOOP sends webhooks when data is ready. The server receives webhooks and broadcasts notifications to connected CLI clients via Server-Sent Events (SSE).
+
+## Server Initialization
+
+The server starts in `cmd/server/main.go:45-202`:
+
+```go
+func main() {
+    _ = godotenv.Load()
+    logger := xslog.NewLoggerFromEnv(os.Stdout)
+    slog.SetDefault(logger)
+
+    ctx := context.Background()
+    if err := run(ctx, logger); err != nil {
+        logger.ErrorContext(ctx, "fatal error", xslog.Error(err))
+        os.Exit(1)
+    }
+}
+
+func run(ctx context.Context, logger *slog.Logger) error {
+    // 1. Read config from environment
+    cfg, err := server.ReadConfig()
+    
+    // 2. Initialize PostgreSQL
+    db, err := initPostgres(ctx, cfg, logger)
+    defer db.Close()
+    
+    // 3. Initialize Redis
+    redisClient, err := xredis.New(ctx, xredis.Config{URL: cfg.Redis.URL})
+    
+    // 4. Initialize storage backends
+    backend, err := initBackend(ctx, cfg, redisClient, logger)
+    whoopLimiter := initWhoopLimiter(ctx, cfg, redisClient, logger)
+    tokenCache := initTokenCache(ctx, redisClient, logger)
+    notificationStore := initNotificationStore(ctx, db, redisClient, logger)
+    
+    // 5. Initialize services
+    userService := user.NewPostgresService(db)
+    tokenService := token.NewValidator(tokenCache, whoopLimiter)
+    notificationService := notification.NewStore(notificationStore)
+    webhookService := webhook.NewProcessor(cfg.Whoop.ClientSecret, notificationStore)
+    proxyService := proxy.NewProxy(whoopLimiter, /* ... */)
+    authService := auth.NewOAuth(oauth.NewConfig(cfg), backend, userService, whoopLimiter)
+    
+    // 6. Initialize handlers
+    authHandler := handler.NewAuth(authService)
+    webhookHandler := handler.NewWebhook(webhookService)
+    proxyHandler := handler.NewProxy(proxyService)
+    notificationsHandler := handler.NewNotifications(notificationService)
+    sseHandler := handler.NewSSE(notificationService)
+    
+    // 7. Setup routes (see below)
+    mux := http.NewServeMux()
+    // ...
+    
+    // 8. Start HTTP server
+    httpServer := &http.Server{
+        Addr:              ":" + cfg.Port,
+        Handler:           wrapped,
+        ReadHeaderTimeout: 10 * time.Second,
+        ReadTimeout:       30 * time.Second,
+        WriteTimeout:      0, // disabled for SSE
+        IdleTimeout:       60 * time.Second,
+    }
+    
+    go func() {
+        logger.InfoContext(ctx, "starting server", slog.String("port", cfg.Port))
+        if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+            logger.ErrorContext(ctx, "server error", xslog.Error(err))
+        }
+    }()
+    
+    // 9. Graceful shutdown
+    <-done // wait for signal
+    logger.InfoContext(ctx, "shutdown signal received")
+    shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+    defer cancel()
+    return httpServer.Shutdown(shutdownCtx)
+}
+```
+
+## Route Structure
+
+The server has three route groups with different authentication requirements:
+
+### Unauthenticated Routes (Global IP Rate Limited)
+
+**From** `cmd/server/main.go:115-129`:
+
+```go
+// Unauthenticated routes - protected by global IP rate limiter
+unauthedMux := http.NewServeMux()
+unauthedMux.HandleFunc("GET /auth/start", authHandler.HandleAuthStart)
+unauthedMux.HandleFunc("GET /auth/callback", authHandler.HandleAuthCallback)
+unauthedMux.HandleFunc("POST /auth/refresh", authHandler.HandleRefresh)
+unauthedMux.HandleFunc("POST /webhooks/whoop", webhookHandler.HandleWebhook)
+unauthedMux.HandleFunc("GET /health", handler.HandleHealth)
+unauthedMux.HandleFunc("GET /privacy", handler.HandlePrivacy)
+
+unauthedWrapped := middleware.Chain(unauthedMux,
+    servermw.RateLimitWithBackend(backend), // IP-based rate limiting
+)
+```
+
+<Info>
+OAuth and webhook endpoints are unauthenticated but protected by IP-based rate limiting to prevent abuse.
+</Info>
+
+### WHOOP Proxy Routes (API Key + Bearer Token + WHOOP Rate Limiter)
+
+**From** `cmd/server/main.go:131-139`:
+
+```go
+// Authenticated routes - protected by API key + WHOOP token + rate limiter
+whoopMux := http.NewServeMux()
+whoopMux.HandleFunc("/api/whoop/", proxyHandler.HandleWhoopProxy)
+
+whoopWrapped := middleware.Chain(whoopMux,
+    middleware.VersionCheck,                    // Ensure CLI version compatibility
+    servermw.APIKeyAuth(userService),           // Validate X-API-Key header
+    servermw.BearerAuth(tokenService),          // Validate Authorization: Bearer
+)
+```
+
+**Middleware chain:**
+1. **VersionCheck**: Rejects outdated CLI versions
+2. **APIKeyAuth**: Validates `X-API-Key` header against PostgreSQL
+3. **BearerAuth**: Validates `Authorization: Bearer <token>` against WHOOP API (cached in Redis)
+4. **Rate limiting**: Checked in proxy handler before forwarding to WHOOP
+
+### Notification Routes (API Key + Bearer Token)
+
+**From** `cmd/server/main.go:141-151`:
+
+```go
+notificationsMux := http.NewServeMux()
+notificationsMux.HandleFunc("GET /api/notifications", notificationsHandler.HandlePoll)
+notificationsMux.HandleFunc("POST /api/notifications/ack", notificationsHandler.HandleAcknowledge)
+notificationsMux.HandleFunc("GET /api/notifications/stream", sseHandler.HandleStream)
+
+notificationsWrapped := middleware.Chain(notificationsMux,
+    servermw.APIKeyAuth(userService),
+    servermw.BearerAuth(tokenService),
+)
+```
+
+## Storage Backends
+
+### PostgreSQL (User Data & Webhooks)
+
+**Initialization** (`cmd/server/main.go:244-258`):
+
+```go
+func initPostgres(ctx context.Context, cfg server.Config, logger *slog.Logger) (xpostgres.DB, error) {
+    logger.InfoContext(ctx, "initializing PostgreSQL")
+
+    db, err := xpostgres.New(ctx, xpostgres.DefaultConfig(cfg.Database.URL))
+    if err != nil {
+        return nil, fmt.Errorf("connect: %w", err)
+    }
+
+    // Apply migrations
+    if err := postgres.Apply(ctx, db.Pool()); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("migrations: %w", err)
+    }
+
+    return db, nil
+}
+```
+
+**Schema (managed via migrations):**
+- `users`: User accounts, API keys, WHOOP user IDs
+- `webhook_events`: WHOOP webhook deliveries (recovery.updated, sleep.updated, etc.)
+
+### Redis (Rate Limiting, Caching, Pub/Sub)
+
+**Initialization** (`cmd/server/main.go:70-73`):
+
+```go
+redisClient, err := xredis.New(ctx, xredis.Config{URL: cfg.Redis.URL})
+if err != nil {
+    return fmt.Errorf("failed to initialize redis client: %w", err)
+}
+```
+
+**Redis usage:**
+1. **Rate limiting state**: Sliding window counters (see [Rate Limiting](/architecture/rate-limiting))
+2. **Token cache**: Bearer token → WHOOP user ID mapping (see [Caching](/architecture/caching))
+3. **OAuth state**: Temporary state storage during OAuth flow
+4. **Pub/Sub**: Webhook event broadcasting to connected SSE clients
+
+## Storage Initialization
+
+**Backend (OAuth state + IP rate limiting)** (`cmd/server/main.go:204-211`):
+
+```go
+func initBackend(ctx context.Context, cfg server.Config, 
+                 redisClient *redis.Client, logger *slog.Logger) (storage.Backend, error) {
+    logger.InfoContext(ctx, "initializing Redis backend")
+    backend, err := storage.NewRedisBackend(
+        storage.RedisConfig{Client: redisClient}, 
+        int(cfg.RateLimit.Limit),
+    )
+    return backend, err
+}
+```
+
+**WHOOP Rate Limiter** (`cmd/server/main.go:213-232`):
+
+```go
+func initWhoopLimiter(ctx context.Context, cfg server.Config, 
+                      redisClient *redis.Client, logger *slog.Logger) storage.WhoopRateLimiter {
+    whoopCfg := storage.WhoopRateLimiterConfig{
+        PerUserDayLimit:       cfg.WhoopRateLimit.PerUserDayLimit,       // 1000
+        GlobalMinuteLimit:     cfg.WhoopRateLimit.GlobalMinuteLimit,     // 95
+        GlobalDayLimit:        cfg.WhoopRateLimit.GlobalDayLimit,        // 9950
+        ReserveBuffer:         cfg.WhoopRateLimit.ReserveBuffer,         // 5
+        MinPerUserMinuteLimit: cfg.WhoopRateLimit.MinPerUserMinuteLimit, // 5
+        ActiveWindowSeconds:   cfg.WhoopRateLimit.ActiveWindowSeconds,   // 60
+    }
+
+    logger.InfoContext(ctx, "initializing WHOOP rate limiter (dynamic)",
+        slog.Int("per_user_day", whoopCfg.PerUserDayLimit),
+        slog.Int("global_minute", whoopCfg.GlobalMinuteLimit),
+        slog.Int("global_day", whoopCfg.GlobalDayLimit))
+
+    return storage.NewWhoopRedisLimiter(storage.RedisConfig{Client: redisClient}, whoopCfg)
+}
+```
+
+**Token Cache** (`cmd/server/main.go:234-237`):
+
+```go
+func initTokenCache(ctx context.Context, redisClient *redis.Client, 
+                    logger *slog.Logger) storage.TokenCache {
+    logger.InfoContext(ctx, "initializing token cache")
+    return storage.NewRedisTokenCache(storage.RedisConfig{Client: redisClient})
+}
+```
+
+**Notification Store** (`cmd/server/main.go:239-242`):
+
+```go
+func initNotificationStore(ctx context.Context, db xpostgres.DB, 
+                           redisClient *redis.Client, logger *slog.Logger) storage.NotificationStore {
+    logger.InfoContext(ctx, "initializing notification store (PostgreSQL + Redis pub/sub)")
+    return storage.NewHybridNotificationStore(db.Pool(), redisClient)
+}
+```
+
+## Middleware Stack
+
+All routes pass through a common middleware chain (`cmd/server/main.go:153-162`):
+
+```go
+wrapped := middleware.Chain(mux,
+    middleware.Recovery,           // Panic recovery
+    middleware.Logging,            // Request/response logging
+    middleware.Gzip,               // Gzip compression
+    middleware.Logger(logger),     // Inject logger into context
+    middleware.ShutdownContext,    // Inject shutdown context
+    middleware.RequestID(),        // Generate request ID
+    middleware.ClientSessionID,    // Extract client session ID
+    middleware.SecurityHeaders,    // Security headers (CSP, etc.)
+)
+```
+
+## Webhooks
+
+WHOOP sends webhooks when data is ready (e.g., recovery scored):
+
+**Webhook flow:**
+
+1. WHOOP sends `POST /webhooks/whoop` with JSON payload
+2. Server validates HMAC signature using client secret
+3. Server stores event in PostgreSQL
+4. Server publishes event to Redis pub/sub channel
+5. Connected SSE clients receive notification
+6. CLI clients refresh stale data
+
+**Webhook types:**
+- `recovery.updated`: New recovery score available
+- `sleep.updated`: Sleep data updated
+- `workout.created`: New workout logged
+- `cycle.updated`: Cycle data changed
+
+<Note>
+Webhook validation uses HMAC-SHA256 with the WHOOP client secret. Invalid signatures are rejected to prevent spoofing.
+</Note>
+
+## Server-Sent Events (SSE)
+
+SSE provides real-time notifications to CLI clients:
+
+**SSE endpoint:** `GET /api/notifications/stream`
+
+**Flow:**
+1. CLI opens SSE connection
+2. Server subscribes to Redis pub/sub channel for user's notifications
+3. When webhook arrives, server publishes to Redis
+4. SSE handler forwards event to client
+5. Client receives notification and refreshes UI
+
+**SSE format:**
+
+```
+event: recovery.updated
+data: {"cycle_id": 12345, "timestamp": "2024-03-02T10:30:00Z"}
+
+event: sleep.updated
+data: {"sleep_id": 67890, "timestamp": "2024-03-02T10:35:00Z"}
+```
+
+**Special consideration:**
+
+SSE connections are long-lived. The server disables `WriteTimeout` to prevent premature closure:
+
+```go
+httpServer := &http.Server{
+    // ...
+    WriteTimeout: 0, // disabled for SSE; use SetWriteDeadline per-request
+    // ...
+}
+```
+
+## Graceful Shutdown
+
+The server handles graceful shutdown (`cmd/server/main.go:176-201`):
+
+```go
+done := make(chan os.Signal, 1)
+signal.Notify(done, os.Interrupt, syscall.SIGTERM)
+
+go func() {
+    logger.InfoContext(ctx, "starting server", slog.String("port", cfg.Port))
+    if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+        logger.ErrorContext(ctx, "server error", xslog.Error(err))
+    }
+}()
+
+<-done
+logger.InfoContext(ctx, "shutdown signal received, initiating graceful shutdown")
+
+cancelBase() // Cancel base context for all requests
+
+shutdownCtx, cancelShutdown := context.WithTimeout(ctx, 30*time.Second)
+defer cancelShutdown()
+
+if err := httpServer.Shutdown(shutdownCtx); err != nil {
+    return fmt.Errorf("server shutdown failed: %w", err)
+}
+
+logger.InfoContext(ctx, "server stopped")
+```
+
+**Shutdown sequence:**
+1. Receive SIGTERM/SIGINT
+2. Cancel base context (propagates to all active requests)
+3. Stop accepting new connections
+4. Wait up to 30 seconds for in-flight requests to complete
+5. Close database and Redis connections
+6. Exit
+
+## Deployment (Fly.io)
+
+The server is deployed on [Fly.io](https://fly.io) with:
+
+- **Regions**: Multiple global regions for low latency
+- **Autoscaling**: 1-10 instances based on load
+- **PostgreSQL**: Fly Postgres cluster with automatic backups
+- **Redis**: Upstash Redis (serverless)
+- **Health checks**: `GET /health` endpoint
+- **Zero-downtime deploys**: Rolling deployments
+
+**fly.toml configuration (example):**
+
+```toml
+app = "thoop"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+
+[env]
+  PORT = "8080"
+```
+
+## Observability
+
+The server uses structured logging via `slog`:
+
+```go
+logger.InfoContext(ctx, "rate limit exceeded",
+    xslog.UserID(userID),
+    xslog.DynamicLimit(state.DynamicMinuteLimit),
+    xslog.ActiveUsers(state.ActiveUserCount))
+```
+
+**Log levels:**
+- `DEBUG`: Detailed request/response data (development only)
+- `INFO`: Normal operations (requests, rate limits, webhooks)
+- `WARN`: Rate limit denials, validation failures
+- `ERROR`: Database errors, WHOOP API failures
+
+**Metrics** (future):
+- Request latency (p50, p95, p99)
+- Rate limit hit rates
+- Active SSE connections
+- WHOOP API error rates
+
+## Security Features
+
+<CardGroup cols={2}>
+  <Card title="OAuth Secret Protection" icon="key">
+    Client secret stored as encrypted environment variable, never exposed to clients.
+  </Card>
+  <Card title="Webhook Signature Validation" icon="signature">
+    HMAC-SHA256 verification prevents webhook spoofing.
+  </Card>
+  <Card title="TLS Everywhere" icon="lock">
+    All communication over HTTPS. Fly.io terminates TLS at edge.
+  </Card>
+  <Card title="Rate Limit Protection" icon="shield">
+    IP-based rate limiting prevents abuse of auth endpoints.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+- [Authentication](/architecture/authentication) - See how OAuth flow works
+- [Rate Limiting](/architecture/rate-limiting) - Understand the rate limiting implementation
+- [Caching](/architecture/caching) - Learn about Redis caching strategy

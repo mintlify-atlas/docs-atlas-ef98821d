@@ -1,0 +1,233 @@
+---
+title: 'Strain & Activity'
+description: 'Daily strain metrics, workout tracking, and cardiovascular performance'
+---
+
+The Strain view tracks your cardiovascular exertion and physical activity throughout the day, measured on a scale of 0-21.
+
+## Strain Score
+
+Strain measures the cardiovascular load on your body from all activities during a physiological day (from waking up to the next sleep).
+
+### Strain Scale
+
+WHOOP uses a logarithmic scale from 0 to 21:
+
+<CardGroup cols={4}>
+  <Card title="Light" icon="1">
+    0.0 - 9.9
+  </Card>
+  <Card title="Moderate" icon="2">
+    10.0 - 13.9
+  </Card>
+  <Card title="Strenuous" icon="3">
+    14.0 - 17.9
+  </Card>
+  <Card title="All Out" icon="4">
+    18.0 - 21.0
+  </Card>
+</CardGroup>
+
+<Note>
+The strain scale is logarithmic, meaning it takes increasingly more effort to increase your score at higher levels.
+</Note>
+
+## Key Metrics
+
+The Strain detail view displays the following metrics with 30-day average comparisons:
+
+### Strain Score
+
+**Higher indicates more exertion**
+
+- **Display**: One decimal place (e.g., "12.4")
+- **Range**: 0.0 - 21.0
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Data Source**: `CycleScore.Strain` (internal/client/whoop/types.go:31)
+
+### Calories
+
+Total energy expenditure for the day.
+
+- **Display**: Formatted with thousand separators (e.g., "2,547")
+- **Unit**: Kilocalories (converted from kilojoules)
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Conversion**: Kilojoules × 0.239006
+
+<Info>
+WHOOP provides energy data in kilojoules; thoop automatically converts to kilocalories for display.
+</Info>
+
+### Average Heart Rate
+
+Mean heart rate across the entire day.
+
+- **Display**: Rounded to nearest BPM (e.g., "72")
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Data Source**: `CycleScore.AverageHeartRate`
+
+### Max Heart Rate
+
+Highest heart rate reached during the day.
+
+- **Display**: Rounded to nearest BPM (e.g., "165")
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Data Source**: `CycleScore.MaxHeartRate`
+
+## Today's Activities
+
+Below the metrics, you'll see a list of all workouts/activities logged for the current day.
+
+### Activity Display
+
+Each activity shows:
+
+1. **Strain Badge**: Orange badge with the workout's strain score (e.g., "12.4")
+2. **Activity Name**: Sport/activity type in uppercase (e.g., "RUNNING", "WEIGHTLIFTING")
+3. **Time Range**: Start and end times in 12-hour format (e.g., "7:30 AM - 8:45 AM")
+
+### Activity Layout
+
+```
+┌──────┐
+│ 12.4 │  RUNNING                    7:30 AM -  8:45 AM
+└──────┘
+┌──────┐
+│  8.1 │  WEIGHTLIFTING             12:00 PM -  1:15 PM
+└──────┘
+```
+
+<Note>
+Activities are filtered to only show workouts that started within the currently selected day's cycle.
+</Note>
+
+### Header Text
+
+- **Today**: "TODAY'S ACTIVITIES"
+- **Historical**: "MON JAN 2 ACTIVITIES" (date-specific)
+
+## Weekly Trends
+
+Scroll down to see 7-day trend charts:
+
+### Strain Trend
+- **Chart Type**: Bar chart
+- **Color**: Gradient from orange to red based on strain level
+- **Y-Axis**: 0-21
+- **Data**: Strain scores from last 7 cycles
+
+### Calories
+- **Chart Type**: Bar chart
+- **Color**: Solid orange
+- **Format**: Comma-separated integers (e.g., "2,547")
+- **Y-Axis**: Auto-scaled to data
+- **Data**: Calorie burn from last 7 cycles
+
+## Navigation
+
+While in the Strain detail view:
+- **←/h or →/l**: Switch to Sleep or Recovery tabs
+- **↑/↓ or j/k**: Scroll through metrics and activities
+- **Mouse Wheel**: Scroll content
+- **esc**: Return to Overview
+- **[/]**: Navigate to previous/next day's strain data
+
+## Data Sources
+
+### Cycle Data
+
+Strain metrics come from the WHOOP Cycle endpoint:
+- **Endpoint**: `/v2/cycle`
+- **Primary Object**: `Cycle` with nested `CycleScore`
+- **Time Range**: From wake-up to next sleep
+
+### Workout Data
+
+Individual activities come from the Workout endpoint:
+- **Endpoint**: `/v2/activity/workout`
+- **Filtering**: Activities within the cycle's date range
+- **Sorting**: Chronological by start time
+
+### Data Structure
+
+Key fields from `internal/client/whoop/types.go`:
+
+```go
+type Cycle struct {
+    ID     int64
+    Start  time.Time  // Beginning of physiological day
+    End    *time.Time // Can be nil if day is ongoing
+    Score  *CycleScore
+}
+
+type CycleScore struct {
+    Strain           float64
+    Kilojoule        float64
+    AverageHeartRate int
+    MaxHeartRate     int
+}
+
+type Workout struct {
+    ID        string
+    Start     time.Time
+    End       time.Time
+    SportName string
+    Score     *WorkoutScore
+}
+
+type WorkoutScore struct {
+    Strain           float64
+    AverageHeartRate int
+    MaxHeartRate     int
+    Kilojoule        float64
+}
+```
+
+## 30-Day Averages
+
+Strain metrics compare to your 30-day rolling averages:
+
+- **Calculation**: Mean of the last 30 cycles with valid scores
+- **Display**: Gray text below current value
+- **Direction**: Teal arrow (above avg) or orange arrow (below avg)
+
+Averages are computed from historical data fetched during initial load.
+
+## Data Availability
+
+If strain data is not available:
+- Gauge shows `--`
+- Metrics section displays "No strain data available"
+- Activities section is hidden
+- Charts are hidden
+
+This occurs when:
+- Viewing a date without cycle data
+- The physiological day hasn't ended yet (no score calculated)
+- Viewing future dates
+
+## Strain vs. Workouts
+
+<Info>
+Your total daily strain includes both:
+- **Workout strain**: From logged activities
+- **Background strain**: From daily movement, stress, and baseline activity
+
+The sum of individual workout strains is typically less than your total daily strain.
+</Info>
+
+## Implementation Details
+
+- **Main View**: `internal/tui/page/dashboard/strain.go` (lines 20-314)
+- **Data Types**: `internal/client/whoop/types.go` (lines 18-35, 98-131)
+- **Workout Rendering**: Activity row layout with strain badges (lines 242-306)
+- **Unit Conversion**: `internal/units` package for kilojoules to calories
+- **Average Calculation**: `internal/tui/page/dashboard/commands.go`

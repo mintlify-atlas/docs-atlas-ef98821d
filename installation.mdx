@@ -1,0 +1,228 @@
+---
+title: Installation
+description: Install thoop via Homebrew or Go on macOS, Linux, and Windows
+---
+
+## Installation Methods
+
+thoop can be installed via Homebrew (recommended) or directly with Go. Choose the method that works best for your platform.
+
+<CodeGroup>
+
+```bash Homebrew
+brew install garrettladley/tap/thoop
+```
+
+```bash Go
+go install github.com/garrettladley/thoop/cmd/thoop@latest
+```
+
+</CodeGroup>
+
+## Platform Requirements
+
+<AccordionGroup>
+  <Accordion title="macOS" icon="apple" defaultOpen>
+    **Recommended:** Install via Homebrew
+
+    ```bash
+    brew install garrettladley/tap/thoop
+    ```
+
+    Credentials are stored in macOS Keychain automatically.
+
+    ### macOS Gatekeeper
+
+    If macOS blocks the binary on first run, remove the quarantine flag:
+
+    ```bash
+    xattr -d com.apple.quarantine $(which thoop)
+    ```
+
+    This is a one-time step for binaries downloaded outside the App Store.
+  </Accordion>
+
+  <Accordion title="Linux" icon="linux">
+    **Install via Go:**
+
+    ```bash
+    go install github.com/garrettladley/thoop/cmd/thoop@latest
+    ```
+
+    ### Required: Secret Service
+
+    thoop requires a running secret service for secure credential storage. Install one of:
+
+    - **GNOME Keyring** (GNOME desktops)
+    - **KWallet** (KDE desktops)
+
+    **For headless servers**, run thoop with a D-Bus session:
+
+    ```bash
+    dbus-run-session -- thoop
+    ```
+
+    <Warning>
+      thoop will exit with an error if no keyring service is available. This is intentional to prevent storing credentials insecurely.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Windows" icon="windows">
+    **Install via Go:**
+
+    ```bash
+    go install github.com/garrettladley/thoop/cmd/thoop@latest
+    ```
+
+    Credentials are stored in Windows Credential Manager.
+  </Accordion>
+</AccordionGroup>
+
+## Verify Installation
+
+Confirm thoop is installed correctly:
+
+```bash
+thoop --version
+```
+
+You should see output like:
+
+```
+thoop version v0.1.0
+```
+
+## First Run
+
+On your first run, thoop will:
+
+1. Create a local SQLite database at `~/.thoop/data.db`
+2. Create a logs directory at `~/.thoop/logs/`
+3. Prompt you to authenticate with WHOOP
+
+<Note>
+  The `~/.thoop/` directory is created automatically. You don't need to set it up manually.
+</Note>
+
+## Updating thoop
+
+thoop checks for updates automatically on startup. When a new version is available, you'll be prompted:
+
+```
+Update available: v0.1.0 → v0.2.0
+Would you like to install it? [y/N]:
+```
+
+Press `y` to upgrade automatically. After upgrading, run `thoop` again to use the new version.
+
+### Manual Upgrade
+
+You can also upgrade manually:
+
+<CodeGroup>
+
+```bash Homebrew
+brew upgrade thoop
+```
+
+```bash Go
+go install github.com/garrettladley/thoop/cmd/thoop@latest
+```
+
+```bash thoop upgrade
+thoop upgrade
+```
+
+</CodeGroup>
+
+## Uninstallation
+
+To completely remove thoop and all local data:
+
+<Steps>
+  <Step title="Purge all data">
+    Revoke WHOOP access and delete local data:
+
+    ```bash
+    thoop purge
+    ```
+
+    This will:
+    - Revoke thoop's access to your WHOOP account
+    - Delete credentials from your system keyring
+    - Delete `~/.thoop/` (database, logs, cache)
+  </Step>
+
+  <Step title="Uninstall the binary">
+    <CodeGroup>
+
+    ```bash Homebrew
+    brew uninstall thoop
+    ```
+
+    ```bash Go
+    rm $(which thoop)
+    ```
+
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Warning>
+  `thoop purge` permanently deletes all local data. You'll need to re-authenticate if you install thoop again.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Keyring not available on Linux">
+    If you see:
+
+    ```
+    Error: OS keyring is not available.
+    ```
+
+    Install gnome-keyring or kwallet:
+
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install gnome-keyring
+
+    # Arch
+    sudo pacman -S gnome-keyring
+
+    # Fedora
+    sudo dnf install gnome-keyring
+    ```
+
+    For headless environments:
+
+    ```bash
+    dbus-run-session -- thoop
+    ```
+  </Accordion>
+
+  <Accordion title="thoop command not found">
+    If Go installed thoop but it's not in your PATH:
+
+    ```bash
+    export PATH=$PATH:$(go env GOPATH)/bin
+    ```
+
+    Add this to your `~/.bashrc` or `~/.zshrc` to make it permanent.
+  </Accordion>
+
+  <Accordion title="macOS Gatekeeper blocks binary">
+    Remove the quarantine attribute:
+
+    ```bash
+    xattr -d com.apple.quarantine $(which thoop)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Authenticate with WHOOP and view your first metrics
+</Card>

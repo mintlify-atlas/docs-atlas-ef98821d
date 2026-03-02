@@ -1,0 +1,234 @@
+---
+title: Configuration
+description: Configuration options and environment variables for thoop
+---
+
+## Overview
+
+thoop stores its configuration, data, and logs in your system's configuration directory. Most settings are managed automatically, but you can customize behavior using environment variables.
+
+## File Locations
+
+### Default Locations
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Location</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Configuration directory</td>
+      <td>`~/.config/thoop/`</td>
+      <td>Main configuration and data directory</td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td>`~/.config/thoop/thoop.db`</td>
+      <td>SQLite database storing cached WHOOP data</td>
+    </tr>
+    <tr>
+      <td>Logs</td>
+      <td>`~/.config/thoop/logs/`</td>
+      <td>Session log files (one per session)</td>
+    </tr>
+    <tr>
+      <td>Credentials</td>
+      <td>System keyring</td>
+      <td>OAuth tokens and API keys stored securely</td>
+    </tr>
+  </tbody>
+</table>
+
+### Development Mode Locations
+
+When built with the `dev` tag, thoop uses separate directories:
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Location</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Configuration directory</td>
+      <td>`~/.config/thoop-dev/`</td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td>`~/.config/thoop-dev/thoop.db`</td>
+    </tr>
+    <tr>
+      <td>Logs</td>
+      <td>`~/.config/thoop-dev/logs/`</td>
+    </tr>
+  </tbody>
+</table>
+
+## Environment Variables
+
+### LOG_LEVEL
+
+Controls the verbosity of application logs.
+
+**Valid values:**
+- `debug` - Detailed debug information
+- `info` - General information (default)
+- `warn` - Warning messages only
+- `error` - Error messages only
+
+**Default:** `info`
+
+**Example:**
+```bash
+LOG_LEVEL=debug thoop
+```
+
+**Log format:**
+Logs are written in text format to `~/.config/thoop/logs/<session-id>.log`.
+
+<Tip>
+Set `LOG_LEVEL=debug` when troubleshooting issues. Each session creates a new log file with a unique session ID.
+</Tip>
+
+## Server Configuration
+
+thoop communicates with a proxy server for OAuth authentication and WHOOP API access.
+
+### Production Server
+
+**URL:** `https://thoop.fly.dev`
+
+Used by default when thoop is installed via Homebrew or built from source without the `dev` tag.
+
+### Development Server
+
+**URL:** `http://localhost:8989`
+
+Used when thoop is built with the `dev` tag:
+```bash
+go build -tags dev ./cmd/thoop
+```
+
+<Warning>
+The server URL cannot be changed via environment variables. It's compiled into the binary based on build tags.
+</Warning>
+
+## Database Configuration
+
+thoop uses SQLite to cache WHOOP data locally. The database is created automatically on first run.
+
+**Schema includes:**
+- OAuth token metadata
+- Cached cycles (strain data)
+- Cached sleep data
+- Cached recovery data
+- Cached workout data
+
+**Performance:**
+- Database file permissions: `0600` (owner read/write only)
+- Logs directory permissions: `0700` (owner access only)
+- Configuration directory permissions: `0700` (owner access only)
+
+## Credential Storage
+
+thoop stores sensitive credentials in your system's keyring for secure storage:
+
+### macOS
+
+Credentials are stored in the **Keychain**.
+
+**Keychain items:**
+- OAuth access token
+- OAuth refresh token
+- WHOOP API key
+
+### Linux
+
+Credentials are stored using the **Secret Service API** (D-Bus).
+
+**Supported backends:**
+- `gnome-keyring` (GNOME)
+- `kwallet` (KDE)
+
+<Warning>
+Linux requires a running secret service. See [Troubleshooting - Keyring Issues](/reference/troubleshooting#keyring-not-available-linux) for setup instructions.
+</Warning>
+
+### Windows
+
+Credentials are stored in the **Windows Credential Manager**.
+
+## Data Retention
+
+thoop caches WHOOP data locally to improve performance and enable offline viewing of previously loaded data.
+
+**Cached data includes:**
+- Last 50 days of cycles, sleep, and recovery (for calendar)
+- Last 7 days of historical data (for charts)
+- Current day's workouts
+
+**Cache invalidation:**
+- Data is refreshed automatically when viewing the dashboard
+- Cache service checks staleness and fetches updates as needed
+- Navigating to different dates triggers fresh data fetches
+
+<Tip>
+Use `thoop purge` to completely clear all cached data and start fresh.
+</Tip>
+
+## Session Management
+
+Each time you run thoop, a new session is created:
+
+**Session ID format:** UUID v4
+
+**Session data includes:**
+- Unique session ID sent with API requests
+- Session-specific log file: `~/.config/thoop/logs/<session-id>.log`
+- SSE connection for real-time updates
+
+## Customization
+
+thoop currently does not support user-configurable themes or color schemes. The interface uses a carefully designed dark theme optimized for terminal viewing.
+
+**UI elements:**
+- Splash and onboarding: Pure black background (`#000000`)
+- Dashboard: Default dark theme
+- Syntax-highlighted JSON for detail views
+- Color-coded calendar (recovery score-based)
+
+## Build Configuration
+
+Developers can build thoop with different configurations:
+
+### Production Build
+
+```bash
+go build ./cmd/thoop
+```
+
+**Configuration:**
+- Server: `https://thoop.fly.dev`
+- Data directory: `~/.config/thoop/`
+- No dev commands available
+
+### Development Build
+
+```bash
+go build -tags dev ./cmd/thoop
+```
+
+**Configuration:**
+- Server: `http://localhost:8989`
+- Data directory: `~/.config/thoop-dev/`
+- Includes dev commands (`auth`, `test`, `templates`)
+
+<Tip>
+Development builds use separate directories so you can run both production and dev versions without conflicts.
+</Tip>

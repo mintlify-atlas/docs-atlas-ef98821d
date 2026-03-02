@@ -1,0 +1,259 @@
+---
+title: 'CLI Commands'
+description: 'Command-line reference for the thoop CLI'
+---
+
+thoop provides several commands for managing your installation and data.
+
+## Main Command
+
+### `thoop`
+
+Launch the thoop TUI:
+
+```bash
+thoop
+```
+
+This is the primary command that starts the terminal user interface.
+
+#### Auto-Update Check
+
+Before launching, thoop automatically:
+
+1. Checks for the latest release on GitHub
+2. Compares your current version to the latest
+3. Checks version compatibility
+4. Prompts to install if a breaking update is available
+
+If a breaking update is detected:
+
+```bash
+Update available: v0.5.0 → v1.0.0
+Would you like to install it? [y/N]:
+```
+
+- Press `y` to upgrade immediately
+- Press `N` to exit and upgrade manually later
+
+<Note>
+Non-breaking updates don't interrupt the startup flow. Use `thoop upgrade` to update manually.
+</Note>
+
+## Upgrade Command
+
+### `thoop upgrade`
+
+Check for updates and install the latest version:
+
+```bash
+thoop upgrade
+```
+
+#### If Already Up-to-Date
+
+```bash
+thoop is up to date (v1.0.0)
+```
+
+#### If Update Available
+
+```bash
+Updating thoop v0.9.0 → v1.0.0
+[installation output]
+Successfully updated!
+```
+
+### Installation Methods
+
+The upgrade command detects your installation method and uses the appropriate updater:
+
+#### Homebrew Installation
+
+If installed via Homebrew:
+
+```bash
+Updating brew...
+Updating thoop...
+```
+
+Runs:
+
+```bash
+brew update
+brew upgrade --cask thoop
+```
+
+#### Go Install
+
+If installed via `go install`:
+
+```bash
+go install github.com/garrettladley/thoop/cmd/thoop@latest
+```
+
+<Tip>
+The upgrade command automatically detects whether you installed via Homebrew or `go install` and uses the correct method.
+</Tip>
+
+## Logout Command
+
+### `thoop logout`
+
+Log out of your WHOOP account and clear stored credentials:
+
+```bash
+thoop logout
+```
+
+#### What Gets Removed
+
+1. **OAuth tokens** - Deleted from system keyring
+2. **API key** - Deleted from system keyring
+3. **Token metadata** - Deleted from SQLite database
+4. **WHOOP access** - Your WHOOP account is notified to revoke thoop's access
+
+<Note>
+Logout does NOT delete your cached WHOOP data (cycles, sleep, recovery records). Use `thoop purge` to remove all data.
+</Note>
+
+#### Output
+
+```bash
+Successfully logged out
+```
+
+If keyring deletion fails (non-fatal):
+
+```bash
+Warning: failed to clear keyring: [error details]
+Successfully logged out
+```
+
+### After Logout
+
+The next time you run `thoop`, you'll be prompted to re-authenticate via the onboarding flow.
+
+## Purge Command
+
+### `thoop purge`
+
+Permanently delete all thoop data from your computer:
+
+```bash
+thoop purge
+```
+
+<Warning>
+This action is irreversible. All cached data will be permanently deleted.
+</Warning>
+
+#### Confirmation Prompt
+
+```bash
+This will:
+  - Revoke thoop's access to your WHOOP account
+  - Delete all credentials from your system keyring
+  - Delete all data in ~/.config/thoop
+
+Are you sure? [y/N]:
+```
+
+- Type `y` or `yes` to confirm
+- Type anything else or press Enter to abort
+
+#### What Gets Deleted
+
+1. **WHOOP API access** - Revoked via API call
+2. **Credentials** - Deleted from system keyring (OAuth tokens, API key)
+3. **SQLite database** - Deleted (all cached cycles, sleep, recovery, workouts)
+4. **Log files** - Deleted
+5. **Configuration** - Entire `~/.config/thoop` directory removed
+
+### Force Flag
+
+```bash
+thoop purge --force
+# or
+thoop purge -f
+```
+
+Skip the confirmation prompt and purge immediately.
+
+<Warning>
+Use `--force` carefully - there's no way to recover your data after purging.
+</Warning>
+
+### Output
+
+```bash
+All local data has been deleted and WHOOP access revoked.
+```
+
+If access revocation fails (non-fatal):
+
+```bash
+Warning: failed to revoke access: [error]
+All local data has been deleted and WHOOP access revoked.
+```
+
+### When to Use Purge
+
+- Uninstalling thoop completely
+- Troubleshooting cache corruption issues
+- Switching WHOOP accounts
+- Removing all traces of thoop from your system
+
+## Version Flag
+
+### `--version`
+
+Display the current thoop version:
+
+```bash
+thoop --version
+```
+
+Output:
+
+```
+v1.0.0
+```
+
+## Help Flag
+
+### `--help`
+
+Display help information:
+
+```bash
+thoop --help
+thoop upgrade --help
+thoop logout --help
+thoop purge --help
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|----------|
+| 0 | Success |
+| 1 | Error occurred |
+
+Examples:
+
+```bash
+thoop logout && echo "Logged out successfully"
+thoop upgrade || echo "Upgrade failed"
+```
+
+## Environment Variables
+
+thoop respects standard environment variables:
+
+- **Log level**: Set via environment (implementation-specific)
+- **Config directory**: `~/.config/thoop` (or `XDG_CONFIG_HOME`)
+
+<Note>
+thoop follows XDG Base Directory specifications on Linux and uses platform-appropriate paths on macOS and Windows.
+</Note>

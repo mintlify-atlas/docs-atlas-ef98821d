@@ -1,0 +1,119 @@
+---
+title: Introduction
+description: A beautiful terminal interface for viewing and analyzing your WHOOP fitness data
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="thoop Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="thoop Hero Dark"
+/>
+
+## Welcome to thoop
+
+thoop is a terminal user interface (TUI) for viewing and analyzing your WHOOP fitness data. Built with modern Go libraries and designed for developers who live in the terminal, thoop brings your health metrics where you work.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with thoop in under a minute
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install via Homebrew or Go on macOS, Linux, and Windows
+  </Card>
+  <Card
+    title="Development"
+    icon="code"
+    href="/development/building"
+  >
+    Contribute to thoop or build custom integrations
+  </Card>
+  <Card
+    title="Command Reference"
+    icon="book"
+    href="/reference/commands"
+  >
+    Explore thoop's commands and configuration options
+  </Card>
+</CardGroup>
+
+## What is thoop?
+
+thoop connects directly to your WHOOP account and displays your fitness data in a beautiful, keyboard-driven terminal interface. View your recovery scores, sleep performance, daily strain, and workout details without leaving your command line.
+
+### Key Features
+
+<CardGroup cols={3}>
+  <Card title="Real-time Sync" icon="arrows-rotate">
+    Live updates via Server-Sent Events keep your data fresh
+  </Card>
+  <Card title="Offline Support" icon="hard-drive">
+    Local SQLite caching lets you browse data without connectivity
+  </Card>
+  <Card title="Secure Auth" icon="lock">
+    OAuth 2.0 flow with tokens stored in your system keyring
+  </Card>
+  <Card title="Beautiful UI" icon="paintbrush">
+    Rendered with Bubble Tea and Lip Gloss for a polished experience
+  </Card>
+  <Card title="Cross-Platform" icon="laptop">
+    Works on macOS, Linux (with keyring support), and Windows
+  </Card>
+  <Card title="Privacy First" icon="shield">
+    All data stored locally, revoke access anytime with `thoop logout`
+  </Card>
+</CardGroup>
+
+## Core Metrics
+
+thoop displays the three primary WHOOP metrics in an intuitive dashboard:
+
+- **Recovery Score** (0-100%) - How ready your body is for strain
+- **Sleep Performance** (0-100%) - Quality and duration of your sleep
+- **Day Strain** (0-21) - Cardiovascular load from activities
+
+Navigate between Overview, Sleep, Recovery, and Strain tabs to drill into detailed metrics, historical trends, and individual workout data.
+
+## How It Works
+
+1. **Authenticate** - thoop uses OAuth to securely connect to your WHOOP account
+2. **Sync Data** - Your cycles, sleep, recovery, and workouts are cached locally
+3. **Browse Offline** - View historical data even without internet
+4. **Stay Updated** - Real-time notifications keep your dashboard current
+
+<Note>
+  thoop stores credentials in your system keyring (Keychain on macOS, Secret Service on Linux, Credential Manager on Windows) for maximum security.
+</Note>
+
+## Technology Stack
+
+thoop is built with:
+
+- **[Bubble Tea](https://github.com/charmbracelet/bubbletea)** - Terminal UI framework
+- **[Lip Gloss](https://github.com/charmbracelet/lipgloss)** - Styling and layout
+- **[Cobra](https://github.com/spf13/cobra)** - CLI command structure
+- **SQLite** - Local data persistence
+- **Go** - Performance and cross-platform support
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Install thoop" icon="terminal" href="/installation">
+    Choose your installation method and get started
+  </Card>
+  <Card title="First Steps" icon="play" href="/quickstart">
+    Authenticate and view your first WHOOP data
+  </Card>
+</CardGroup>

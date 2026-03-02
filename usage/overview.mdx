@@ -1,0 +1,92 @@
+---
+title: 'Using the TUI'
+description: 'Overview of the thoop terminal user interface'
+---
+
+The thoop TUI provides an interactive dashboard for viewing your WHOOP fitness data directly in your terminal. The interface displays your daily recovery, sleep, and strain metrics in a beautiful, easy-to-read format.
+
+## Interface Layout
+
+The TUI consists of three main components:
+
+<Steps>
+  <Step title="Overview Dashboard">
+    The landing page shows three gauges displaying your current:
+    - Recovery score (with HRV and resting HR)
+    - Sleep performance percentage
+    - Strain score
+  </Step>
+  
+  <Step title="Detail Views">
+    Navigate to dedicated tabs for in-depth analysis of:
+    - **Recovery**: Heart rate variability, resting HR, SpO2, and skin temperature
+    - **Sleep**: Sleep stages, disturbances, respiratory rate, and sleep debt
+    - **Strain**: Workouts, activities, and daily strain breakdown
+  </Step>
+  
+  <Step title="Calendar View">
+    A full calendar interface for:
+    - Navigating to any historical date
+    - Viewing recovery trends at a glance (color-coded by score)
+    - Quickly jumping to specific days
+  </Step>
+</Steps>
+
+## Starting the TUI
+
+Simply run the main command:
+
+```bash
+thoop
+```
+
+On first launch, you'll be guided through the authentication process to connect your WHOOP account.
+
+## Authentication Flow
+
+<Note>
+thoop uses OAuth 2.0 to securely connect to your WHOOP account. Your credentials are stored in your system keyring and never exposed in plain text.
+</Note>
+
+The onboarding process:
+
+1. Press Enter to start authentication
+2. Your browser opens to authorize thoop
+3. Grant access to your WHOOP data
+4. Return to the terminal - you're ready to go!
+
+## Data Display
+
+### Today Mode
+
+By default, thoop shows your current day's data, which updates in real-time as new WHOOP data becomes available.
+
+### Historical Mode
+
+Navigate to any past date to view historical data. The interface clearly indicates when you're viewing historical data versus today.
+
+<Tip>
+Press `t` from anywhere to quickly return to today's data.
+</Tip>
+
+## Navigation Hints
+
+The footer displays context-aware navigation hints that change based on:
+- Which tab you're viewing
+- Whether you're in calendar mode
+- Whether you're viewing today or a historical date
+
+## Real-time Updates
+
+When viewing today's data, thoop automatically refreshes when:
+- A new sleep session is logged
+- Your recovery score updates
+- A workout is completed
+
+<Note>
+Real-time updates only work when viewing today's data. Historical dates show static snapshots.
+</Note>
+
+## Exiting the TUI
+
+Press `q` or `Ctrl+C` at any time to exit thoop.

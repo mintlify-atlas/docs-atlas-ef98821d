@@ -1,0 +1,161 @@
+---
+title: 'Recovery Metrics'
+description: 'Detailed recovery analysis with HRV, heart rate, and respiratory metrics'
+---
+
+The Recovery view provides in-depth analysis of your body's readiness to perform, based on WHOOP's physiological measurements during sleep.
+
+## Recovery Score
+
+The recovery score (0-100%) is WHOOP's primary metric for determining how prepared your body is for strain. It's calculated from:
+
+- Heart Rate Variability (HRV)
+- Resting Heart Rate (RHR)
+- Respiratory Rate
+- Sleep Performance
+- Skin Temperature
+- Blood Oxygen Saturation (SpO2)
+
+### Color Coding
+
+Recovery scores are color-coded to indicate status:
+
+<CardGroup cols={3}>
+  <Card title="High Recovery" color="#2DD881">
+    67-100% - Ready for intense training
+  </Card>
+  <Card title="Medium Recovery" color="#FBD168">
+    34-66% - Moderate activity recommended
+  </Card>
+  <Card title="Low Recovery" color="#FE4E57">
+    0-33% - Rest or light activity advised
+  </Card>
+</CardGroup>
+
+## Key Metrics
+
+The Recovery detail view displays the following metrics with 30-day average comparisons:
+
+### HRV (Heart Rate Variability)
+
+**Higher is better** - Measures the variation in time between heartbeats.
+
+- **Display**: Rounded to nearest millisecond (e.g., "45")
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Data Source**: `RecoveryScore.HRVRmssdMilli` (internal/client/whoop/types.go:51)
+
+### Resting Heart Rate
+
+**Lower is better** - Your heart rate during rest/sleep.
+
+- **Display**: Rounded to nearest BPM (e.g., "52")
+- **Direction Indicator**: 
+  - ↓ (teal) when below 30-day average (good)
+  - ↑ (orange) when above 30-day average (bad)
+- **Data Source**: `RecoveryScore.RestingHeartRate` (internal/client/whoop/types.go:50)
+
+### Respiratory Rate
+
+**Lower is better** - Breaths per minute during sleep.
+
+- **Display**: One decimal place (e.g., "16.2")
+- **Direction Indicator**: 
+  - ↓ (teal) when below 30-day average (good)
+  - ↑ (orange) when above 30-day average (bad)
+- **Data Source**: `SleepScore.RespiratoryRate` (internal/client/whoop/types.go:74)
+
+<Note>
+Respiratory rate comes from the associated sleep record, not the recovery record.
+</Note>
+
+### Sleep Performance
+
+**Higher is better** - How well you slept compared to your needs.
+
+- **Display**: Percentage rounded to nearest integer (e.g., "87%")
+- **Direction Indicator**: 
+  - ↑ (teal) when above 30-day average
+  - ↓ (orange) when below 30-day average
+- **Data Source**: `SleepScore.SleepPerformancePercentage` (internal/client/whoop/types.go:75)
+
+## 30-Day Averages
+
+Each metric shows a comparison to your 30-day average:
+
+- **Average Value**: Displayed in gray below the current value
+- **Direction Arrow**: Color-coded arrow indicating whether you're above or below average
+- **Calculation**: Computed from the last 30 days of historical data (internal/tui/page/dashboard/commands.go)
+
+<Info>
+The direction arrows account for whether "higher is better" or "lower is better" for each metric, so teal always means good and orange always means concerning.
+</Info>
+
+## Weekly Trends
+
+Scroll down to see charts showing 7-day trends for:
+
+### Recovery Trend
+- **Chart Type**: Bar chart with color-coded bars (green/yellow/red)
+- **Data**: Recovery scores from the last 7 days
+- **Y-Axis**: 0-100%
+
+### HRV Trend
+- **Chart Type**: Line chart with dots
+- **Color**: Recovery blue
+- **Data**: HRV values from last 7 recoveries
+
+### Resting Heart Rate
+- **Chart Type**: Line chart with dots
+- **Color**: Recovery blue
+- **Data**: RHR from last 7 recoveries
+
+### Respiratory Rate
+- **Chart Type**: Line chart with dots
+- **Color**: Recovery blue
+- **Data**: Respiratory rate from last 7 sleep sessions (excluding naps)
+
+### Sleep Performance
+- **Chart Type**: Bar chart with color-coded bars
+- **Data**: Sleep performance % from last 7 sleep sessions
+- **Y-Axis**: 0-100%
+
+<Note>
+Charts automatically filter out naps and only show data up to the currently selected date when viewing historical data.
+</Note>
+
+## Navigation
+
+While in the Recovery detail view:
+- **←/h or →/l**: Switch to Sleep or Strain tabs
+- **↑/↓ or j/k**: Scroll through metrics and charts
+- **Mouse Wheel**: Scroll content
+- **esc**: Return to Overview
+- **[/]**: Navigate to previous/next day's recovery data
+
+## Scrolling
+
+The Recovery view uses a lazy-loaded scrollable list:
+- Content is rendered on-demand as you scroll
+- Charts are cached to avoid re-rendering
+- Scroll offset resets when switching tabs or changing dates
+
+## Data Availability
+
+If recovery data is not available:
+- Gauge shows `--`
+- Metrics section displays "No recovery data available" in gray italic text
+- Charts are hidden
+
+This can occur when:
+- Viewing a date without sleep data
+- Recovery hasn't been calculated yet (appears after waking)
+- Viewing future dates
+
+## Implementation Details
+
+- **Main View**: `internal/tui/page/dashboard/recovery.go` (lines 16-412)
+- **Data Types**: `internal/client/whoop/types.go` (lines 37-54)
+- **Average Calculation**: `internal/tui/page/dashboard/commands.go:150-182`
+- **Direction Logic**: Higher-is-better vs. lower-is-better handling (lines 377-411)

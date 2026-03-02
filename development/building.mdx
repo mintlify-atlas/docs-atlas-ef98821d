@@ -1,0 +1,262 @@
+---
+title: Building from Source
+description: Build thoop locally for development or create production-ready binaries
+---
+
+## Prerequisites
+
+Before building thoop, ensure you have the following installed:
+
+- **Go 1.25.1+** - Required for building the project
+- **Make** - For running build commands
+- **Git** - For version control
+- **templ** - For generating Go code from templates
+- **sqlc** - For generating type-safe SQL code
+- **golangci-lint** - For code linting
+
+## Quick Start
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/garrettladley/thoop.git
+    cd thoop
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    make install
+    ```
+    This runs `go mod tidy` to download all required Go dependencies.
+  </Step>
+
+  <Step title="Build for development">
+    ```bash
+    make build
+    ```
+    This creates binaries in the `bin/` directory with dev commands enabled.
+  </Step>
+</Steps>
+
+## Development vs Release Builds
+
+thoop supports two build modes with different feature sets:
+
+### Development Build
+
+```bash
+make build
+```
+
+Development builds include:
+- Dev-only commands (enabled with `-tags dev`)
+- Debug symbols (despite `-ldflags="-s -w"`)
+- All three binaries: `thoop`, `thoop-server`, `thoop-db`
+
+<Note>
+  The `-tags dev` flag enables special development commands that are not available in release builds.
+</Note>
+
+### Release Build
+
+```bash
+make build/release
+```
+
+Release builds:
+- Exclude dev commands (no build tags)
+- Strip debug symbols with `-ldflags="-s -w"`
+- Optimized for production use
+- Smaller binary size
+
+## Building Individual Components
+
+You can build specific binaries instead of all three:
+
+<CodeGroup>
+```bash TUI Client
+make build/thoop
+```
+
+```bash Server
+make build/server
+```
+
+```bash Database CLI
+# No dedicated target, use:
+go build -ldflags="-s -w" -o bin/thoop-db ./cmd/db
+```
+</CodeGroup>
+
+## Code Generation
+
+thoop uses code generation tools that must be run before building:
+
+### templ - Template Generation
+
+[templ](https://templ.guide/) generates Go code from `.templ` template files used for HTML rendering.
+
+<Steps>
+  <Step title="Install templ">
+    ```bash
+    make templ/install
+    ```
+    Installs templ v0.3.865
+  </Step>
+
+  <Step title="Generate template code">
+    ```bash
+    make templ/generate
+    ```
+    Processes all `.templ` files in the project
+  </Step>
+</Steps>
+
+### sqlc - SQL Code Generation
+
+[sqlc](https://sqlc.dev/) generates type-safe Go code from SQL queries.
+
+<Steps>
+  <Step title="Install sqlc">
+    ```bash
+    make sqlc/install
+    ```
+  </Step>
+
+  <Step title="Generate SQL code">
+    ```bash
+    make sqlc/generate
+    ```
+    Generates code for both SQLite (client) and PostgreSQL (server)
+  </Step>
+
+  <Step title="Verify generated code">
+    ```bash
+    make sqlc/verify
+    ```
+    Checks if generated code is up to date with SQL files
+  </Step>
+</Steps>
+
+<Tip>
+  Run `make sqlc/verify` in CI to ensure generated code is committed and up to date.
+</Tip>
+
+## Version Management
+
+thoop uses a generated version file for version tracking:
+
+```bash
+# Generate version from manifest
+make version/gen
+
+# Generate snapshot version for local dev
+make version/snapshot
+
+# Print current version
+make version
+```
+
+## Running Without Building
+
+For rapid development, run binaries directly:
+
+<CodeGroup>
+```bash TUI Client (dev mode)
+make thoop
+# Equivalent to:
+go run -tags dev -ldflags="-s -w" ./cmd/thoop
+```
+
+```bash Database CLI
+make db
+# Equivalent to:
+go run ./cmd/db
+```
+
+```bash Server
+make server
+# Equivalent to:
+go run -ldflags="-s -w" ./cmd/server
+```
+</CodeGroup>
+
+## Testing
+
+Run the test suite with race detection:
+
+```bash
+make test
+```
+
+This executes `go test -v -race ./...` to run all tests with verbose output and race condition detection.
+
+## Linting and Formatting
+
+thoop uses [golangci-lint](https://golangci-lint.run/) for comprehensive code quality checks:
+
+<CodeGroup>
+```bash Format Code
+make fmt
+```
+
+```bash Run Linter
+make lint
+```
+
+```bash Auto-fix Issues
+make lint/fix
+```
+</CodeGroup>
+
+The linter configuration is in `.golangci.yml` and includes 30+ enabled linters.
+
+## Production Releases
+
+thoop uses [GoReleaser](https://goreleaser.com/) for automated releases:
+
+- Builds for `linux` and `darwin` (macOS)
+- Architectures: `amd64` and `arm64`
+- Creates archives and checksums
+- GPG signing of artifacts
+- Publishes to Homebrew tap
+- Automated changelog generation
+
+Configuration: `.goreleaser.yaml`
+
+<Note>
+  GoReleaser runs automatically via GitHub Actions on tagged releases. Manual releases are not typically needed.
+</Note>
+
+## Troubleshooting
+
+### Missing Code Generation
+
+If you see errors about missing types or functions:
+
+```bash
+make templ/generate
+make sqlc/generate
+```
+
+### Outdated Dependencies
+
+```bash
+make install
+```
+
+### Build Cache Issues
+
+```bash
+go clean -cache
+make build
+```
+
+### macOS Gatekeeper Block
+
+If macOS blocks the binary:
+
+```bash
+xattr -d com.apple.quarantine bin/thoop
+```

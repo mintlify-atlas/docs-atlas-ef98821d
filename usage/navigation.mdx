@@ -1,0 +1,91 @@
+---
+title: 'Interface Navigation'
+description: 'Keyboard shortcuts and navigation controls for the thoop TUI'
+---
+
+The thoop TUI is fully keyboard-driven, with vim-style keybindings and intuitive arrow key support.
+
+## Tab Navigation
+
+Navigate between the main dashboard tabs:
+
+| Key | Action |
+|-----|--------|
+| `→` or `l` | Next tab (cycles right) |
+| `←` or `h` | Previous tab (cycles left) |
+| `↓` or `j` | Enter detail view from overview |
+| `↑` or `k` | Scroll up in detail views |
+| `Esc` | Return to overview from detail view |
+| `Enter` | Enter Recovery tab from overview |
+
+<Note>
+The tab order is: **Overview** → **Sleep** ↔ **Recovery** ↔ **Strain**
+
+From the overview, pressing right goes to Strain (rightmost), while left goes to Sleep (leftmost).
+</Note>
+
+## Scrolling in Detail Views
+
+When viewing Recovery, Sleep, or Strain detail tabs:
+
+| Key | Action |
+|-----|--------|
+| `↓` or `j` | Scroll down |
+| `↑` or `k` | Scroll up |
+| Mouse wheel | Scroll up/down (3 lines per tick) |
+
+<Tip>
+Scrolling is automatically disabled on the Overview tab since all content fits on screen.
+</Tip>
+
+## Global Controls
+
+These work from anywhere in the interface:
+
+| Key | Action |
+|-----|--------|
+| `q` or `Ctrl+C` | Quit thoop |
+| `c` | Open calendar view |
+| `t` | Jump to today (if viewing historical date) |
+| Any key | Skip splash screen (after auth check) |
+
+## Tab Behavior
+
+### From Overview
+
+- **Right (`→` or `l`)**: Jump directly to Strain (rightmost tab)
+- **Left (`←` or `h`)**: Jump directly to Sleep (leftmost tab)
+- **Down (`↓` or `j`)**: Enter Recovery tab (middle position)
+- **Enter**: Enter Recovery tab
+
+### Between Detail Tabs
+
+Tabs cycle in a continuous loop:
+
+```
+Sleep ← → Recovery ← → Strain
+  ↑                        ↓
+  └────────────────────────┘
+```
+
+## Scroll Offset Reset
+
+<Note>
+When you switch tabs, the scroll position automatically resets to the top. This prevents confusion when moving between different detail views.
+</Note>
+
+## Mouse Support
+
+While thoop is keyboard-first, limited mouse support is available:
+
+- **Mouse wheel**: Scroll up/down in detail views (disabled on Overview)
+- Scrolling is capped to prevent scrolling into empty space
+
+## Accessibility
+
+All navigation is possible via keyboard alone - no mouse required. The interface uses:
+
+- Vim-style keybindings (`hjkl`) for directional movement
+- Arrow keys as alternatives
+- Intuitive shortcuts (`c` for calendar, `t` for today)
+- Context-aware hints displayed in the footer

@@ -1,0 +1,144 @@
+---
+title: Command Reference
+description: Complete reference for all thoop CLI commands
+---
+
+## Overview
+
+thoop provides several commands for managing your WHOOP data viewing experience and authentication.
+
+## Available Commands
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`thoop`</td>
+      <td>Launch the interactive TUI (default command)</td>
+    </tr>
+    <tr>
+      <td>`thoop upgrade`</td>
+      <td>Check for updates and install if available</td>
+    </tr>
+    <tr>
+      <td>`thoop logout`</td>
+      <td>Log out and clear all stored credentials</td>
+    </tr>
+    <tr>
+      <td>`thoop purge`</td>
+      <td>Delete all local data and revoke WHOOP access</td>
+    </tr>
+  </tbody>
+</table>
+
+## Command Details
+
+### thoop
+
+```bash
+thoop
+```
+
+Launches the interactive terminal user interface for viewing your WHOOP data.
+
+**Behavior:**
+- Automatically checks for updates on startup
+- If a breaking update is available, prompts you to upgrade
+- Opens the TUI to display your recovery, sleep, and strain data
+
+### thoop upgrade
+
+```bash
+thoop upgrade
+```
+
+Manually checks for updates and installs the latest version if available.
+
+**Output:**
+- If up to date: `thoop is up to date (v1.2.3)`
+- If update available: Downloads and installs the new version
+
+### thoop logout
+
+```bash
+thoop logout
+```
+
+Logs you out of your WHOOP account and clears stored credentials.
+
+**What it does:**
+1. Revokes thoop's access to your WHOOP account (best effort)
+2. Deletes OAuth tokens and API keys from your system keyring
+3. Deletes token metadata from the local database
+
+<Tip>
+This command does NOT delete your cached WHOOP data. Use `thoop purge` to remove all data.
+</Tip>
+
+### thoop purge
+
+```bash
+thoop purge [--force]
+```
+
+Permanently deletes all thoop data from your computer and revokes WHOOP access.
+
+**Flags:**
+- `-f, --force`: Skip the confirmation prompt
+
+**What it does:**
+1. Revokes thoop's access to your WHOOP account
+2. Deletes OAuth tokens and API keys from your system keyring
+3. Deletes all cached WHOOP data (cycles, sleep, recovery, workouts)
+4. Deletes log files and configuration from `~/.config/thoop/`
+5. Removes the entire `~/.config/thoop/` directory
+
+**Interactive prompt (without --force):**
+```
+This will:
+  - Revoke thoop's access to your WHOOP account
+  - Delete all credentials from your system keyring
+  - Delete all data in ~/.config/thoop
+
+Are you sure? [y/N]:
+```
+
+<Warning>
+This action is irreversible. All locally cached data will be permanently deleted.
+</Warning>
+
+## Developer Commands
+
+The following commands are only available when thoop is built with the `dev` tag:
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>`thoop auth`</td>
+      <td>Authenticate with WHOOP (dev mode)</td>
+    </tr>
+    <tr>
+      <td>`thoop test`</td>
+      <td>Run internal tests</td>
+    </tr>
+    <tr>
+      <td>`thoop templates`</td>
+      <td>Work with TUI templates</td>
+    </tr>
+  </tbody>
+</table>
+
+<Tip>
+Developer commands use `http://localhost:8989` as the server URL and store data in `~/.config/thoop-dev/`.
+</Tip>
